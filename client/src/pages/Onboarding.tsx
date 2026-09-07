@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { extractPowerPointText, getPowerPointUploadHint, MAX_RESUME_FILE_SIZE, MIN_RESUME_TEXT_LENGTH } from "@/lib/resume-upload";
+import { extractResumeText, getPowerPointUploadHint, isSupportedResumeFile, MAX_RESUME_FILE_SIZE, MIN_RESUME_TEXT_LENGTH, RESUME_UPLOAD_ACCEPT } from "@/lib/resume-upload";
 
 const steps = [
   { title: "Start with your resume", description: "Upload your resume first so ResumeIQ Pro can personalize every recommendation.", icon: FileUp },
@@ -60,12 +60,12 @@ export default function Onboarding() {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
-    if (!file.name.toLowerCase().endsWith(".pptx") && !file.name.toLowerCase().endsWith(".ppt")) return toast.error("Please upload a PowerPoint resume (.pptx or .ppt).");
+    if (!isSupportedResumeFile(file)) return toast.error("Please upload a PDF, Word (.docx), or PowerPoint (.pptx) resume.");
     if (file.size > MAX_RESUME_FILE_SIZE) return toast.error("Please upload a resume smaller than 10 MB.");
     setResumeFileName(file.name);
     setIsReadingResume(true);
     try {
-      const text = await extractPowerPointText(file);
+      const text = await extractResumeText(file);
       if (text.trim().length < MIN_RESUME_TEXT_LENGTH) {
         setResumeText("");
         return toast.error("We could not find enough readable text in that resume.");
@@ -74,7 +74,7 @@ export default function Onboarding() {
       toast.success("Resume ready. Continue to personalize your workspace.");
     } catch (error) {
       setResumeText("");
-      toast.error(error instanceof Error ? error.message : "We could not read that PowerPoint resume. Try a text-based .pptx file.");
+      toast.error(error instanceof Error ? error.message : "We could not read that resume. Try a text-based PDF, .docx, or .pptx file.");
     } finally {
       setIsReadingResume(false);
     }
@@ -130,7 +130,7 @@ export default function Onboarding() {
       <Card className="glass-card border-0">
         <CardHeader><div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/15 text-primary"><Icon className="h-6 w-6" /></div><CardTitle>{current.title}</CardTitle><p className="text-sm text-muted-foreground">{current.description}</p></CardHeader>
         <CardContent className="space-y-6">
-          {step === 0 && <div className="space-y-4"><label htmlFor="first-resume" className="group flex cursor-pointer flex-col items-center justify-center rounded-3xl border border-dashed border-primary/40 bg-primary/5 p-8 text-center transition hover:border-primary hover:bg-primary/10"><span className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/15 text-primary"><FileUp className="h-7 w-7" /></span><span className="font-semibold text-foreground">{isReadingResume ? "Reading your resume…" : resumeFileName || "Upload your resume"}</span><span className="mt-1 text-xs text-muted-foreground">{getPowerPointUploadHint()}</span><input id="first-resume" type="file" accept=".ppt,.pptx,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation" onChange={handleResumeUpload} disabled={isReadingResume} className="sr-only" /></label>{isReadingResume && <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin text-primary" />Extracting readable text…</div>}{resumeText && <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/5 p-4 text-sm text-emerald-200"><strong>Ready to personalize.</strong> Your resume will be saved as your first version and used across ATS Scanner, Job-Fit, and the AI career tools.</div>}</div>}
+          {step === 0 && <div className="space-y-4"><label htmlFor="first-resume" className="group flex cursor-pointer flex-col items-center justify-center rounded-3xl border border-dashed border-primary/40 bg-primary/5 p-8 text-center transition hover:border-primary hover:bg-primary/10"><span className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/15 text-primary"><FileUp className="h-7 w-7" /></span><span className="font-semibold text-foreground">{isReadingResume ? "Reading your resume…" : resumeFileName || "Upload your resume"}</span><span className="mt-1 text-xs text-muted-foreground">{getPowerPointUploadHint()}</span><input id="first-resume" type="file" accept={RESUME_UPLOAD_ACCEPT} onChange={handleResumeUpload} disabled={isReadingResume} className="sr-only" /></label>{isReadingResume && <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin text-primary" />Extracting readable text…</div>}{resumeText && <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/5 p-4 text-sm text-emerald-200"><strong>Ready to personalize.</strong> Your resume will be saved as your first version and used across ATS Scanner, Job-Fit, and the AI career tools.</div>}</div>}
           {step === 1 && <div className="space-y-2"><Label htmlFor="target-role">Target role</Label><Input id="target-role" value={targetRole} onChange={(event) => setTargetRole(event.target.value)} placeholder="e.g. Frontend Engineer" className="bg-background/40" /></div>}
           {step === 2 && <div className="grid gap-3 sm:grid-cols-3">{["Student / beginner", "Early career", "Career switcher"].map((level) => <button key={level} onClick={() => setExperienceLevel(level)} className={`rounded-2xl border p-4 text-left transition ${experienceLevel === level ? "border-primary bg-primary/10 shadow-[0_0_24px_rgba(34,211,238,0.12)]" : "border-border bg-background/20 hover:border-primary/40"}`}><span className="text-sm font-medium">{level}</span><span className="mt-1 block text-xs text-muted-foreground">{level === "Student / beginner" ? "Build strong foundations" : level === "Early career" ? "Sharpen your signal" : "Translate your experience"}</span></button>)}</div>}
           {step === 2 && <div className="grid gap-3 sm:grid-cols-2">{toolOptions.map((tool) => <button key={tool} onClick={() => toggleTool(tool)} className={`flex items-center gap-3 rounded-2xl border p-4 text-left transition ${selectedTools.includes(tool) ? "border-primary bg-primary/10" : "border-border bg-background/20 hover:border-primary/40"}`}><span className={`flex h-6 w-6 items-center justify-center rounded-full ${selectedTools.includes(tool) ? "bg-primary text-primary-foreground" : "bg-accent/50 text-muted-foreground"}`}>{selectedTools.includes(tool) && <Check className="h-4 w-4" />}</span><span className="text-sm font-medium">{tool}</span></button>)}</div>}
