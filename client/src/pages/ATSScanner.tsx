@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { extractPowerPointText, getPowerPointUploadHint, MAX_RESUME_FILE_SIZE, MIN_RESUME_TEXT_LENGTH } from "@/lib/resume-upload";
+import { extractResumeText, getPowerPointUploadHint, isSupportedResumeFile, MAX_RESUME_FILE_SIZE, MIN_RESUME_TEXT_LENGTH, RESUME_UPLOAD_ACCEPT } from "@/lib/resume-upload";
 import {
   Upload,
   ScanSearch,
@@ -52,8 +52,8 @@ export default function ATSScanner() {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    if (!file.name.toLowerCase().endsWith(".pptx") && !file.name.toLowerCase().endsWith(".ppt")) {
-      toast.error("Please upload a PowerPoint resume (.pptx or .ppt).");
+    if (!isSupportedResumeFile(file)) {
+      toast.error("Please upload a PDF, Word (.docx), or PowerPoint (.pptx) resume.");
       return;
     }
     if (file.size > MAX_RESUME_FILE_SIZE) {
@@ -64,18 +64,18 @@ export default function ATSScanner() {
     setFileName(file.name);
     setIsReadingFile(true);
     try {
-      const text = await extractPowerPointText(file);
+      const text = await extractResumeText(file);
 
       if (text.trim().length < MIN_RESUME_TEXT_LENGTH) {
         setResumeText("");
-        toast.error("We could not find enough readable text in that PowerPoint resume.");
+        toast.error("We could not find enough readable text in that resume.");
         return;
       }
       setResumeText(text);
       toast.success("Resume text extracted. Click Scan Resume to continue.");
     } catch (error) {
       setResumeText("");
-      toast.error(error instanceof Error ? error.message : "We could not read that PowerPoint resume. Try a text-based .pptx file.");
+      toast.error(error instanceof Error ? error.message : "We could not read that resume. Try a text-based PDF, .docx, or .pptx file.");
     } finally {
       setIsReadingFile(false);
     }
@@ -152,13 +152,13 @@ export default function ATSScanner() {
                   <div className="glass-card p-4 flex items-center gap-3 cursor-pointer hover:border-cyan/30 transition-colors">
                     <Upload className="h-5 w-5 text-cyan shrink-0" />
                     <span className="text-sm text-muted-foreground truncate">
-                      {isReadingFile ? "Extracting slide text…" : fileName || "Click to upload a PowerPoint resume"}
+                      {isReadingFile ? "Extracting resume text…" : fileName || "Click to upload your resume"}
                     </span>
                   </div>
                   <span className="mt-1 block text-xs text-muted-foreground">{getPowerPointUploadHint()}</span>
                   <input
                     type="file"
-                    accept=".ppt,.pptx,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                    accept={RESUME_UPLOAD_ACCEPT}
                     onChange={handleFileUpload}
                     className="hidden"
                   />
@@ -234,207 +234,3 @@ export default function ATSScanner() {
                     <div className="relative w-24 h-24">
                       <div className="score-circle w-24 h-24" style={{ "--score": result.score } as React.CSSProperties}>
                         <div className="w-full h-full rounded-full bg-[var(--color-background)] flex items-center justify-center">
-                          <Zap className={`h-6 w-6 ${getScoreColor(result.score)}`} />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <Progress value={result.score} className="h-2 mt-4" />
-                  <div className="flex gap-2 mt-4">
-                    <Button variant="outline" size="sm" onClick={handleCopyResult} className="glass-input">
-                      <Copy className="mr-2 h-3 w-3" />
-                      Copy Results
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Issues & Keywords */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {/* Issues */}
-                <Card className="glass-card border-0 overflow-hidden">
-                  <CardHeader>
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <AlertTriangle className="h-4 w-4 text-amber-400" />
-                      Issues Found ({result.issues.length})
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3 max-h-[400px] overflow-y-auto">
-                    {result.issues.map((issue, i) => (
-                      <div key={i} className="flex items-start gap-2 p-3 rounded-lg bg-accent/20">
-                        <XCircle className="h-4 w-4 text-rose-400 shrink-0 mt-0.5" />
-                        <p className="text-sm text-muted-foreground">{issue}</p>
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-
-                {/* Keywords */}
-                <Card className="glass-card border-0 overflow-hidden">
-                  <CardHeader>
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-cyan" />
-                      Keywords
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4 max-h-[400px] overflow-y-auto">
-                    <div>
-                      <p className="text-xs font-medium text-emerald-400 mb-2 flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3" />
-                        Found ({result.foundKeywords.length})
-                      </p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {result.foundKeywords.map((kw) => (
-                          <Badge key={kw} variant="secondary" className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 font-normal">
-                            {kw}
-                          </Badge>
-                        ))}
-                        {result.foundKeywords.length === 0 && (
-                          <p className="text-xs text-muted-foreground">No relevant keywords detected</p>
-                        )}
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-amber-400 mb-2 flex items-center gap-1">
-                        <Info className="h-3 w-3" />
-                        Missing ({result.missingKeywords.length} shown)
-                      </p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {result.missingKeywords.map((kw) => (
-                          <Badge key={kw} variant="secondary" className="bg-amber-500/15 text-amber-400 border-amber-500/30 font-normal">
-                            {kw}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                    {result.buzzwords.length > 0 && (
-                      <div>
-                        <p className="text-xs font-medium text-rose-400 mb-2">Overused Buzzwords</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {result.buzzwords.map((bw) => (
-                            <Badge key={bw} variant="secondary" className="bg-rose-500/15 text-rose-400 border-rose-500/30 font-normal">
-                              {bw}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Exact Missing Keyword Highlights */}
-              <Card className="glass-card border-0 overflow-hidden border-amber-400/20">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Info className="h-4 w-4 text-amber-400" />
-                        Exact missing keyword highlights
-                      </CardTitle>
-                      <CardDescription className="mt-1">
-                        These are the specific ATS terms not detected in this resume. Add them only where they truthfully reflect your experience.
-                      </CardDescription>
-                    </div>
-                    <Badge variant="secondary" className="shrink-0 bg-amber-400/10 text-amber-300 border-amber-400/30">
-                      {result.missingKeywords.length} gaps
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {result.missingKeywords.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
-                      {result.missingKeywords.map((keyword, index) => (
-                        <div
-                          key={keyword}
-                          className="group flex items-center gap-3 rounded-xl border border-amber-400/25 bg-amber-400/10 px-3 py-3 transition-colors hover:border-amber-300/50 hover:bg-amber-400/15"
-                        >
-                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-400/20 text-xs font-semibold text-amber-300">
-                            {index + 1}
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-semibold text-amber-100">{keyword}</p>
-                            <p className="text-[11px] text-amber-200/60">Not detected in resume</p>
-                          </div>
-                          <Badge variant="secondary" className="shrink-0 bg-amber-400/15 text-[10px] text-amber-300 border-amber-400/30">
-                            Missing
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-sm text-emerald-300">
-                      No missing keywords were found in the active scan.
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Save as Resume Version */}
-              <Card className="glass-card border-0 overflow-hidden">
-                <CardContent className="p-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => saveMutation.mutate({ name: `ATS Scan - ${new Date().toLocaleDateString()}`, content: resumeText, atsScore: result.score })}
-                    className="glass-input"
-                  >
-                    <FileText className="mr-2 h-4 w-4 text-cyan" />
-                    Save as Resume Version
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-        </TabsContent>
-
-        {/* History Tab */}
-        <TabsContent value="history" className="space-y-4">
-          <Card className="glass-card border-0 overflow-hidden">
-            <CardHeader>
-              <CardTitle className="text-lg">Scan History</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {historyQuery.isLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : historyQuery.data && historyQuery.data.length > 0 ? (
-                <div className="space-y-3">
-                  {historyQuery.data.map((scan) => (
-                    <div key={scan.id} className="glass-card p-4 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold text-sm ${
-                          scan.atsScore >= 80 ? "bg-emerald-500/20 text-emerald-400" :
-                          scan.atsScore >= 60 ? "bg-amber-500/20 text-amber-400" :
-                          "bg-rose-500/20 text-rose-400"
-                        }`}>
-                          {scan.atsScore}
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-foreground">
-                            ATS Score: {scan.atsScore}/100
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(scan.createdAt).toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-                      <Badge variant="secondary" className="text-xs">
-                        {JSON.parse(scan.foundKeywords || "[]").length} keywords found
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <ScanSearch className="h-10 w-10 mx-auto mb-3 opacity-40" />
-                  <p className="text-sm">No scans yet. Upload your resume to get started.</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-}
