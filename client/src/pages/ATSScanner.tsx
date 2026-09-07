@@ -234,3 +234,141 @@ export default function ATSScanner() {
                     <div className="relative w-24 h-24">
                       <div className="score-circle w-24 h-24" style={{ "--score": result.score } as React.CSSProperties}>
                         <div className="w-full h-full rounded-full bg-[var(--color-background)] flex items-center justify-center">
+                          <Zap className={`h-6 w-6 ${getScoreColor(result.score)}`} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <Progress value={result.score} className="h-2 mt-4" />
+                  <div className="flex gap-2 mt-4">
+                    <Button variant="outline" size="sm" onClick={handleCopyResult} className="glass-input">
+                      <Copy className="mr-2 h-3 w-3" />
+                      Copy Results
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Issues & Keywords */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Issues */}
+                <Card className="glass-card border-0 overflow-hidden">
+                  <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 text-amber-400" />
+                      Issues Found ({result.issues.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3 max-h-[400px] overflow-y-auto">
+                    {result.issues.map((issue, i) => (
+                      <div key={i} className="flex items-start gap-2 p-3 rounded-lg bg-accent/20">
+                        <XCircle className="h-4 w-4 text-rose-400 shrink-0 mt-0.5" />
+                        <p className="text-sm text-muted-foreground">{issue}</p>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                {/* Keywords */}
+                <Card className="glass-card border-0 overflow-hidden">
+                  <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-cyan" />
+                      Keywords
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4 max-h-[400px] overflow-y-auto">
+                    <div>
+                      <p className="text-xs font-medium text-emerald-400 mb-2 flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Found ({result.foundKeywords.length})
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {result.foundKeywords.map((kw) => (
+                          <Badge key={kw} variant="secondary" className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 font-normal">
+                            {kw}
+                          </Badge>
+                        ))}
+                        {result.foundKeywords.length === 0 && (
+                          <p className="text-xs text-muted-foreground">No relevant keywords detected</p>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-amber-400 mb-2 flex items-center gap-1">
+                        <Info className="h-3 w-3" />
+                        Missing ({result.missingKeywords.length} shown)
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {result.missingKeywords.map((kw) => (
+                          <Badge key={kw} variant="secondary" className="bg-amber-500/15 text-amber-400 border-amber-500/30 font-normal">
+                            {kw}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                    {result.buzzwords.length > 0 && (
+                      <div>
+                        <p className="text-xs font-medium text-rose-400 mb-2">Overused Buzzwords</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {result.buzzwords.map((bw) => (
+                            <Badge key={bw} variant="secondary" className="bg-rose-500/15 text-rose-400 border-rose-500/30 font-normal">
+                              {bw}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Exact Missing Keyword Highlights */}
+              <Card className="glass-card border-0 overflow-hidden border-amber-400/20">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Info className="h-4 w-4 text-amber-400" />
+                        Exact missing keyword highlights
+                      </CardTitle>
+                      <CardDescription className="mt-1">
+                        These are the specific ATS terms not detected in this resume. Add them only where they truthfully reflect your experience.
+                      </CardDescription>
+                    </div>
+                    <Badge variant="secondary" className="shrink-0 bg-amber-400/10 text-amber-300 border-amber-400/30">
+                      {result.missingKeywords.length} gaps
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {result.missingKeywords.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
+                      {result.missingKeywords.map((keyword, index) => (
+                        <div
+                          key={keyword}
+                          className="group flex items-center gap-3 rounded-xl border border-amber-400/25 bg-amber-400/10 px-3 py-3 transition-colors hover:border-amber-300/50 hover:bg-amber-400/15"
+                        >
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-400/20 text-xs font-semibold text-amber-300">
+                            {index + 1}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-amber-100">{keyword}</p>
+                            <p className="text-[11px] text-amber-200/60">Not detected in resume</p>
+                          </div>
+                          <Badge variant="secondary" className="shrink-0 bg-amber-400/15 text-[10px] text-amber-300 border-amber-400/30">
+                            Missing
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-sm text-emerald-300">
+                      No missing keywords were found in the active scan.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Save as Resume Version */}
+              <Card className="glass-card border-0 overflow-hidden">
