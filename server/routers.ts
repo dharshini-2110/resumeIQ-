@@ -295,7 +295,7 @@ export const appRouter = router({
     })).mutation(async ({ ctx, input }) => {
       try {
         const response = await invokeLLM({
-          model: "gpt-5-mini",
+          model: "llama-3.3-70b-versatile",
           messages: [
             {
               role: "system",
@@ -359,7 +359,7 @@ Return JSON with this exact structure:
     })).mutation(async ({ ctx, input }) => {
       try {
         const response = await invokeLLM({
-          model: "gpt-5-mini",
+          model: "llama-3.3-70b-versatile",
           messages: [
             {
               role: "system",
@@ -456,7 +456,7 @@ Return JSON with this exact structure:
         const latestResume = versions.length > 0 ? versions[0].content : input.resumeContent || "";
 
         const response = await invokeLLM({
-          model: "gpt-5-mini",
+          model: "llama-3.3-70b-versatile",
           messages: [
             {
               role: "system",
@@ -506,7 +506,7 @@ Be specific, actionable, and encouraging. Reference their actual resume content 
     })).mutation(async ({ ctx, input }) => {
       try {
         const response = await invokeLLM({
-          model: "gpt-5-mini",
+          model: "llama-3.3-70b-versatile",
           messages: [
             {
               role: "system",
@@ -725,7 +725,7 @@ Return JSON with this exact structure:
     })).mutation(async ({ ctx, input }) => {
       try {
         const response = await invokeLLM({
-          model: "gpt-5-mini",
+          model: "llama-3.3-70b-versatile",
           messages: [
             {
               role: "system",
@@ -784,7 +784,7 @@ Return JSON with this exact structure:
     })).mutation(async ({ ctx, input }) => {
       try {
         const response = await invokeLLM({
-          model: "gpt-5-mini",
+          model: "llama-3.3-70b-versatile",
           messages: [
             {
               role: "system",
@@ -935,7 +935,7 @@ Return JSON with this exact structure:
     })).mutation(async ({ ctx, input }) => {
       try {
         const response = await invokeLLM({
-          model: "gpt-5-mini",
+          model: "llama-3.3-70b-versatile",
           messages: [
             {
               role: "system",
