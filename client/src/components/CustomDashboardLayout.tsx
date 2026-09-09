@@ -348,7 +348,7 @@ function DashboardLayoutContent({
           open={passwordDialogOpen}
           onOpenChange={setPasswordDialogOpen}
         >
-          <DialogContent className="border-white/10 bg-card/95 backdrop-blur-xl sm:max-w-md">
+          <DialogContent className="border-border bg-card/95 backdrop-blur-xl sm:max-w-md">
             <DialogHeader>
               <DialogTitle>
                 Enable email sign-in
@@ -442,10 +442,8 @@ function DashboardLayoutContent({
           </div>
         )}
 
-        {/* IMPORTANT:
-            Removed "intelligence-grid" from this main element.
-            It was causing the bottom of the page to fade out.
-        */}
+        {/* Fixed: intelligence-grid removed from main.
+            This prevents the entire page from fading at the bottom. */}
         <main className="flex-1 p-4 lg:p-6 aurora-bg min-h-screen">
           <div className="relative z-10">
             {children}
