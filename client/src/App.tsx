@@ -24,23 +24,23 @@ import MNCCareerLaunch from "./pages/MNCCareerLaunch";
 function Router() {
   return (
     <Switch>
-      <Route path={"/"} component={Home} />
-      <Route path={"/launchpad"} component={MNCCareerLaunch} />
-      <Route path={"/ats-scanner"} component={ATSScanner} />
-      <Route path={"/job-fit"} component={JobFitAnalyzer} />
-      <Route path={"/resume-rewriter"} component={ResumeRewriter} />
-      <Route path={"/career-coach"} component={CareerCoach} />
-      <Route path={"/skill-gap"} component={SkillGapAnalyzer} />
-      <Route path={"/pdf-export"} component={PDFExport} />
-      <Route path={"/mock-interview"} component={MockInterview} />
-      <Route path={"/github-analyzer"} component={GitHubAnalyzer} />
-      <Route path={"/career-paths"} component={CareerPathPlanner} />
-      <Route path={"/resume-versions"} component={ResumeVersionManager} />
-      <Route path={"/gamification"} component={Gamification} />
-      <Route path={"/career-momentum"} component={Gamification} />
-      <Route path={"/onboarding"} component={Onboarding} />
-      <Route path={"/applications"} component={JobTracker} />
-      <Route path={"/404"} component={NotFound} />
+      <Route path="/" component={Home} />
+      <Route path="/launchpad" component={MNCCareerLaunch} />
+      <Route path="/ats-scanner" component={ATSScanner} />
+      <Route path="/job-fit" component={JobFitAnalyzer} />
+      <Route path="/resume-rewriter" component={ResumeRewriter} />
+      <Route path="/career-coach" component={CareerCoach} />
+      <Route path="/skill-gap" component={SkillGapAnalyzer} />
+      <Route path="/pdf-export" component={PDFExport} />
+      <Route path="/mock-interview" component={MockInterview} />
+      <Route path="/github-analyzer" component={GitHubAnalyzer} />
+      <Route path="/career-paths" component={CareerPathPlanner} />
+      <Route path="/resume-versions" component={ResumeVersionManager} />
+      <Route path="/gamification" component={Gamification} />
+      <Route path="/career-momentum" component={Gamification} />
+      <Route path="/onboarding" component={Onboarding} />
+      <Route path="/applications" component={JobTracker} />
+      <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -49,13 +49,15 @@ function Router() {
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider defaultTheme="dark">
+      <ThemeProvider defaultTheme="light">
         <TooltipProvider>
           <Toaster
-            theme="dark"
+            theme="light"
             position="top-right"
             richColors
+            closeButton
           />
+
           <DashboardLayout>
             <Router />
           </DashboardLayout>
