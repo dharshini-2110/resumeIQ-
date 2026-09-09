@@ -11,28 +11,38 @@
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
+
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
+
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
+
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -46,48 +56,46 @@
   --color-violet: #7c3aed;
   --color-pink: #db2777;
 
-  --font-sans: "Inter", system-ui, sans-serif;
+  --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
 }
 
 :root {
   --radius: 0.75rem;
 
-  /* Main colors */
-  --background: oklch(0.98 0.005 260);
+  /* =========================================================
+     LIGHT PROFESSIONAL THEME
+     ========================================================= */
+
+  --background: oklch(0.985 0.004 260);
   --foreground: oklch(0.20 0.025 260);
 
-  /* Cards */
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.20 0.025 260);
 
-  /* Popovers */
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.20 0.025 260);
 
-  /* Primary */
+  /* Brand pink/purple */
   --primary: oklch(0.62 0.20 340);
   --primary-foreground: oklch(1 0 0);
 
-  /* Secondary */
   --secondary: oklch(0.95 0.01 260);
   --secondary-foreground: oklch(0.25 0.025 260);
 
-  /* Muted */
-  --muted: oklch(0.94 0.012 260);
-  --muted-foreground: oklch(0.42 0.025 260);
+  --muted: oklch(0.95 0.01 260);
+  --muted-foreground: oklch(0.43 0.025 260);
 
-  /* Accent */
-  --accent: oklch(0.94 0.025 290);
+  --accent: oklch(0.95 0.02 290);
   --accent-foreground: oklch(0.30 0.05 290);
 
-  /* Destructive */
   --destructive: oklch(0.58 0.22 25);
   --destructive-foreground: oklch(1 0 0);
 
-  /* Borders & inputs */
-  --border: oklch(0.88 0.015 260);
-  --input: oklch(0.88 0.015 260);
-  --ring: oklch(0.70 0.18 290);
+  --border: oklch(0.89 0.012 260);
+  --input: oklch(0.89 0.012 260);
+
+  --ring: oklch(0.68 0.18 290);
 
   /* Charts */
   --chart-1: oklch(0.65 0.18 195);
@@ -97,14 +105,16 @@
   --chart-5: oklch(0.68 0.15 160);
 
   /* Sidebar */
-  --sidebar: oklch(0.99 0.003 260);
+  --sidebar: oklch(0.995 0.002 260);
   --sidebar-foreground: oklch(0.22 0.025 260);
   --sidebar-primary: oklch(0.62 0.20 340);
   --sidebar-primary-foreground: oklch(1 0 0);
+
   --sidebar-accent: oklch(0.95 0.02 290);
   --sidebar-accent-foreground: oklch(0.30 0.05 290);
+
   --sidebar-border: oklch(0.90 0.012 260);
-  --sidebar-ring: oklch(0.70 0.18 290);
+  --sidebar-ring: oklch(0.68 0.18 290);
 }
 
 @layer base {
@@ -114,12 +124,16 @@
 
   html {
     background: var(--background);
+    color-scheme: light;
   }
 
   body {
     @apply bg-background text-foreground font-sans;
+
     color: #1f2937;
     background-color: #f8fafc;
+
+    min-height: 100vh;
   }
 
   button:focus-visible,
@@ -149,41 +163,49 @@
 
   input::placeholder,
   textarea::placeholder {
-    color: #6b7280;
+    color: #64748b;
     opacity: 1;
+  }
+
+  ::selection {
+    background: rgba(124, 58, 237, 0.16);
+    color: #1f2937;
   }
 }
 
 /* =========================================================
-   LIGHT GLASS CARD
+   PROFESSIONAL LIGHT GLASS CARDS
    ========================================================= */
 
 @layer components {
   .glass-card {
-    background: rgba(255, 255, 255, 0.92);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(15, 23, 42, 0.10);
+    background: rgba(255, 255, 255, 0.94);
+
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+
+    border: 1px solid rgba(15, 23, 42, 0.09);
+
     border-radius: var(--radius-xl);
 
     box-shadow:
-      0 8px 32px rgba(15, 23, 42, 0.08),
-      inset 0 1px 0 rgba(255, 255, 255, 0.9);
+      0 8px 30px rgba(15, 23, 42, 0.06),
+      0 1px 2px rgba(15, 23, 42, 0.04);
 
     transition:
-      border-color 220ms cubic-bezier(0.23, 1, 0.32, 1),
-      box-shadow 220ms cubic-bezier(0.23, 1, 0.32, 1),
-      transform 220ms cubic-bezier(0.23, 1, 0.32, 1);
+      border-color 220ms ease,
+      box-shadow 220ms ease,
+      transform 220ms ease;
   }
 
   .glass-card-hover:hover {
-    border-color: rgba(124, 58, 237, 0.30);
+    border-color: rgba(124, 58, 237, 0.22);
 
     box-shadow:
-      0 16px 48px rgba(15, 23, 42, 0.12),
-      0 0 0 1px rgba(124, 58, 237, 0.06);
+      0 14px 40px rgba(15, 23, 42, 0.10),
+      0 0 0 1px rgba(124, 58, 237, 0.04);
 
-    transform: translateY(-3px);
+    transform: translateY(-2px);
   }
 
   /* =======================================================
@@ -191,56 +213,64 @@
      ======================================================= */
 
   .glass-input {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(12px);
+    background: rgba(255, 255, 255, 0.98);
+
+    backdrop-filter: blur(10px);
 
     border: 1px solid rgba(15, 23, 42, 0.14);
+
     border-radius: var(--radius-md);
 
     color: #1f2937;
 
     transition:
-      border-color 0.2s cubic-bezier(0.23, 1, 0.32, 1),
-      box-shadow 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+      border-color 180ms ease,
+      box-shadow 180ms ease,
+      background-color 180ms ease;
+  }
+
+  .glass-input:hover {
+    border-color: rgba(15, 23, 42, 0.22);
   }
 
   .glass-input:focus {
-    border-color: rgba(124, 58, 237, 0.65);
+    border-color: rgba(124, 58, 237, 0.60);
+
+    background: #ffffff;
 
     box-shadow:
-      0 0 0 3px rgba(124, 58, 237, 0.12);
+      0 0 0 3px rgba(124, 58, 237, 0.10);
 
     outline: none;
   }
 
   .glass-input::placeholder {
-    color: #6b7280;
+    color: #64748b;
   }
 
   /* =======================================================
-     AURORA BACKGROUND
+     BRAND GRADIENT
      ======================================================= */
 
   .aurora-gradient {
     background: linear-gradient(
       135deg,
-      rgba(8, 145, 178, 0.08) 0%,
-      rgba(124, 58, 237, 0.08) 35%,
-      rgba(219, 39, 119, 0.08) 65%,
-      rgba(8, 145, 178, 0.05) 100%
+      rgba(8, 145, 178, 0.12) 0%,
+      rgba(124, 58, 237, 0.12) 45%,
+      rgba(219, 39, 119, 0.12) 100%
     );
   }
 
   .aurora-glow-cyan {
-    box-shadow: 0 0 40px rgba(8, 145, 178, 0.12);
+    box-shadow: 0 0 35px rgba(8, 145, 178, 0.10);
   }
 
   .aurora-glow-violet {
-    box-shadow: 0 0 40px rgba(124, 58, 237, 0.12);
+    box-shadow: 0 0 35px rgba(124, 58, 237, 0.10);
   }
 
   .aurora-glow-pink {
-    box-shadow: 0 0 40px rgba(219, 39, 119, 0.12);
+    box-shadow: 0 0 35px rgba(219, 39, 119, 0.10);
   }
 
   /* =======================================================
@@ -286,9 +316,9 @@
   .text-gradient-full {
     background: linear-gradient(
       135deg,
-      #0891b2,
-      #7c3aed,
-      #db2777
+      #0891b2 0%,
+      #7c3aed 50%,
+      #db2777 100%
     );
 
     -webkit-background-clip: text;
@@ -297,7 +327,7 @@
   }
 
   /* =======================================================
-     BUTTON
+     BUTTONS
      ======================================================= */
 
   .btn-glow {
@@ -305,7 +335,8 @@
     overflow: hidden;
 
     transition:
-      all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+      transform 200ms ease,
+      box-shadow 200ms ease;
   }
 
   .btn-glow::before {
@@ -318,19 +349,22 @@
 
     background: linear-gradient(
       135deg,
-      rgba(8, 145, 178, 0.18),
-      rgba(124, 58, 237, 0.18),
-      rgba(219, 39, 119, 0.18)
+      rgba(8, 145, 178, 0.12),
+      rgba(124, 58, 237, 0.12),
+      rgba(219, 39, 119, 0.12)
     );
 
     opacity: 0;
 
-    transition:
-      opacity 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+    transition: opacity 200ms ease;
   }
 
   .btn-glow:hover::before {
     opacity: 1;
+  }
+
+  .btn-glow:hover {
+    box-shadow: 0 8px 25px rgba(124, 58, 237, 0.15);
   }
 
   .btn-glow:active {
@@ -338,30 +372,40 @@
   }
 
   /* =======================================================
-     MAIN BACKGROUND
+     MAIN PAGE BACKGROUND
      ======================================================= */
 
   .aurora-bg {
     position: relative;
-    overflow: hidden;
+
+    min-height: 100%;
 
     background:
       radial-gradient(
-        circle at 12% 8%,
-        rgba(8, 145, 178, 0.07),
-        transparent 28rem
+        circle at 10% 5%,
+        rgba(8, 145, 178, 0.055),
+        transparent 26rem
       ),
       radial-gradient(
-        circle at 88% 12%,
-        rgba(124, 58, 237, 0.07),
-        transparent 30rem
+        circle at 90% 10%,
+        rgba(124, 58, 237, 0.055),
+        transparent 28rem
       ),
       linear-gradient(
         145deg,
-        #f8fafc,
-        #f1f5f9
+        #f8fafc 0%,
+        #f5f7fb 55%,
+        #f8fafc 100%
       );
   }
+
+  /*
+   * IMPORTANT:
+   * No overflow:hidden here.
+   * No mask-image here.
+   * This prevents the page content from being
+   * clipped or faded at the bottom.
+   */
 
   .aurora-bg > * {
     position: relative;
@@ -375,23 +419,24 @@
   .intelligence-grid {
     background-image:
       linear-gradient(
-        rgba(15, 23, 42, 0.035) 1px,
+        rgba(15, 23, 42, 0.028) 1px,
         transparent 1px
       ),
       linear-gradient(
         90deg,
-        rgba(15, 23, 42, 0.035) 1px,
+        rgba(15, 23, 42, 0.028) 1px,
         transparent 1px
       );
 
     background-size: 32px 32px;
 
-    mask-image:
-      linear-gradient(
-        to bottom,
-        black,
-        transparent 82%
-      );
+    /*
+     * DO NOT MASK THIS ELEMENT.
+     * The old mask-image was fading the page.
+     */
+
+    mask-image: none !important;
+    -webkit-mask-image: none !important;
   }
 
   /* =======================================================
@@ -414,7 +459,7 @@
     background: linear-gradient(
       115deg,
       transparent 20%,
-      rgba(255, 255, 255, 0.45) 48%,
+      rgba(255, 255, 255, 0.35) 48%,
       transparent 70%
     );
 
@@ -433,10 +478,14 @@
      ======================================================= */
 
   .eyebrow {
-    letter-spacing: 0.2em;
+    letter-spacing: 0.18em;
+
     text-transform: uppercase;
+
     font-size: 0.68rem;
+
     font-weight: 700;
+
     color: #0891b2;
   }
 
@@ -454,22 +503,26 @@
 
     filter: blur(48px);
 
-    opacity: 0.20;
+    opacity: 0.16;
 
     pointer-events: none;
   }
 
   .aurora-orb-violet {
-    background: rgba(124, 58, 237, 0.25);
+    background: rgba(124, 58, 237, 0.30);
   }
 
   .aurora-orb-cyan {
-    background: rgba(8, 145, 178, 0.22);
+    background: rgba(8, 145, 178, 0.26);
   }
 
   .aurora-orb-pink {
-    background: rgba(219, 39, 119, 0.22);
+    background: rgba(219, 39, 119, 0.26);
   }
+
+  /* =======================================================
+     BACKGROUND DECORATION
+     ======================================================= */
 
   .aurora-bg::before {
     content: "";
@@ -485,22 +538,22 @@
     background:
       radial-gradient(
         ellipse at 20% 50%,
-        rgba(8, 145, 178, 0.06) 0%,
+        rgba(8, 145, 178, 0.035) 0%,
         transparent 50%
       ),
       radial-gradient(
         ellipse at 80% 20%,
-        rgba(124, 58, 237, 0.06) 0%,
+        rgba(124, 58, 237, 0.035) 0%,
         transparent 50%
       ),
       radial-gradient(
         ellipse at 50% 80%,
-        rgba(219, 39, 119, 0.04) 0%,
+        rgba(219, 39, 119, 0.025) 0%,
         transparent 50%
       );
 
     animation:
-      aurora-move 20s ease-in-out infinite;
+      aurora-move 24s ease-in-out infinite;
 
     pointer-events: none;
 
@@ -514,11 +567,11 @@
     }
 
     33% {
-      transform: translate(2%, -2%) rotate(1deg);
+      transform: translate(1%, -1%) rotate(0.5deg);
     }
 
     66% {
-      transform: translate(-1%, 1%) rotate(-1deg);
+      transform: translate(-1%, 1%) rotate(-0.5deg);
     }
   }
 
@@ -541,7 +594,7 @@
   .score-circle {
     background: conic-gradient(
       #0891b2 calc(var(--score) * 1%),
-      rgba(15, 23, 42, 0.10) 0%
+      rgba(15, 23, 42, 0.09) 0%
     );
 
     border-radius: 50%;
@@ -554,10 +607,10 @@
      ======================================================= */
 
   .keyword-highlight-missing {
-    background: rgba(219, 39, 119, 0.10);
+    background: rgba(219, 39, 119, 0.09);
 
     border:
-      1px dashed rgba(219, 39, 119, 0.45);
+      1px dashed rgba(219, 39, 119, 0.40);
 
     border-radius: 4px;
 
@@ -569,10 +622,10 @@
   }
 
   .keyword-highlight-found {
-    background: rgba(22, 163, 74, 0.10);
+    background: rgba(22, 163, 74, 0.09);
 
     border:
-      1px solid rgba(22, 163, 74, 0.35);
+      1px solid rgba(22, 163, 74, 0.30);
 
     border-radius: 4px;
 
@@ -634,7 +687,8 @@
 
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
-  border-radius: 4px;
+
+  border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -642,7 +696,7 @@
 }
 
 /* =========================================================
-   GENERAL READABILITY FIXES
+   READABILITY OVERRIDES
    ========================================================= */
 
 .text-muted-foreground {
@@ -665,6 +719,10 @@
   color: #475569 !important;
 }
 
+/* =========================================================
+   OLD DARK-THEME UTILITIES
+   ========================================================= */
+
 .border-white\/10 {
   border-color: rgba(15, 23, 42, 0.10) !important;
 }
@@ -673,10 +731,15 @@
   border-color: rgba(15, 23, 42, 0.06) !important;
 }
 
+/*
+ * Keep explicit dark backgrounds from making important
+ * content unreadable on the new light layout.
+ */
+
 .bg-black {
   background-color: #f8fafc !important;
 }
 
 .bg-black\/50 {
-  background-color: rgba(248, 250, 252, 0.85) !important;
+  background-color: rgba(248, 250, 252, 0.90) !important;
 }
