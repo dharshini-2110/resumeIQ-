@@ -1,4 +1,4 @@
-import { ENV } from "./env";
+import type { RequestInit } from "node-fetch";
 
 export type Role = "system" | "user" | "assistant" | "tool" | "function";
 
@@ -19,11 +19,20 @@ export type FileContent = {
   type: "file_url";
   file_url: {
     url: string;
-    mime_type?: "audio/mpeg" | "audio/wav" | "application/pdf" | "audio/mp4" | "video/mp4" ;
+    mime_type?:
+      | "audio/mpeg"
+      | "audio/wav"
+      | "application/pdf"
+      | "audio/mp4"
+      | "video/mp4";
   };
 };
 
-export type MessageContent = string | TextContent | ImageContent | FileContent;
+export type MessageContent =
+  | string
+  | TextContent
+  | ImageContent
+  | FileContent;
 
 export type Message = {
   role: Role;
@@ -42,7 +51,11 @@ export type Tool = {
 };
 
 export type ToolChoicePrimitive = "none" | "auto" | "required";
-export type ToolChoiceByName = { name: string };
+
+export type ToolChoiceByName = {
+  name: string;
+};
+
 export type ToolChoiceExplicit = {
   type: "function";
   function: {
@@ -88,7 +101,9 @@ export type InvokeResult = {
     index: number;
     message: {
       role: Role;
-      content: string | Array<TextContent | ImageContent | FileContent>;
+      content:
+        | string
+        | Array<TextContent | ImageContent | FileContent>;
       tool_calls?: ToolCall[];
     };
     finish_reason: string | null;
@@ -111,7 +126,10 @@ export type OutputSchema = JsonSchema;
 export type ResponseFormat =
   | { type: "text" }
   | { type: "json_object" }
-  | { type: "json_schema"; json_schema: JsonSchema };
+  | {
+      type: "json_schema";
+      json_schema: JsonSchema;
+    };
 
 const ensureArray = (
   value: MessageContent | MessageContent[]
@@ -121,7 +139,10 @@ const normalizeContentPart = (
   part: MessageContent
 ): TextContent | ImageContent | FileContent => {
   if (typeof part === "string") {
-    return { type: "text", text: part };
+    return {
+      type: "text",
+      text: part,
+    };
   }
 
   if (part.type === "text") {
@@ -144,7 +165,9 @@ const normalizeMessage = (message: Message) => {
 
   if (role === "tool" || role === "function") {
     const content = ensureArray(message.content)
-      .map(part => (typeof part === "string" ? part : JSON.stringify(part)))
+      .map((part) =>
+        typeof part === "string" ? part : JSON.stringify(part)
+      )
       .join("\n");
 
     return {
@@ -155,10 +178,15 @@ const normalizeMessage = (message: Message) => {
     };
   }
 
-  const contentParts = ensureArray(message.content).map(normalizeContentPart);
+  const contentParts = ensureArray(message.content).map(
+    normalizeContentPart
+  );
 
-  // If there's only text content, collapse to a single string for compatibility
-  if (contentParts.length === 1 && contentParts[0].type === "text") {
+  // If there is only text content, use a simple string.
+  if (
+    contentParts.length === 1 &&
+    contentParts[0].type === "text"
+  ) {
     return {
       role,
       name,
@@ -176,8 +204,14 @@ const normalizeMessage = (message: Message) => {
 const normalizeToolChoice = (
   toolChoice: ToolChoice | undefined,
   tools: Tool[] | undefined
-): "none" | "auto" | ToolChoiceExplicit | undefined => {
-  if (!toolChoice) return undefined;
+):
+  | "none"
+  | "auto"
+  | ToolChoiceExplicit
+  | undefined => {
+  if (!toolChoice) {
+    return undefined;
+  }
 
   if (toolChoice === "none" || toolChoice === "auto") {
     return toolChoice;
@@ -198,29 +232,42 @@ const normalizeToolChoice = (
 
     return {
       type: "function",
-      function: { name: tools[0].function.name },
+      function: {
+        name: tools[0].function.name,
+      },
     };
   }
 
   if ("name" in toolChoice) {
     return {
       type: "function",
-      function: { name: toolChoice.name },
+      function: {
+        name: toolChoice.name,
+      },
     };
   }
 
   return toolChoice;
 };
 
-const resolveApiUrl = () =>
-  ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0
-    ? `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/chat/completions`
-    : "https://forge.manus.im/v1/chat/completions";
+const GROQ_API_URL =
+  "https://api.groq.com/openai/v1/chat/completions";
 
-const assertApiKey = () => {
-  if (!ENV.forgeApiKey) {
-    throw new Error("OPENAI_API_KEY is not configured");
+const GROQ_MODELS_URL =
+  "https://api.groq.com/openai/v1/models";
+
+const DEFAULT_MODEL = "openai/gpt-oss-120b";
+
+const getApiKey = () => {
+  const apiKey = process.env.GROQ_API_KEY?.trim();
+
+  if (!apiKey) {
+    throw new Error(
+      "GROQ_API_KEY is not configured. Add GROQ_API_KEY to your Render environment variables."
+    );
   }
+
+  return apiKey;
 };
 
 const normalizeResponseFormat = ({
@@ -239,6 +286,7 @@ const normalizeResponseFormat = ({
   | { type: "json_object" }
   | undefined => {
   const explicitFormat = responseFormat || response_format;
+
   if (explicitFormat) {
     if (
       explicitFormat.type === "json_schema" &&
@@ -248,14 +296,20 @@ const normalizeResponseFormat = ({
         "responseFormat json_schema requires a defined schema object"
       );
     }
+
     return explicitFormat;
   }
 
   const schema = outputSchema || output_schema;
-  if (!schema) return undefined;
+
+  if (!schema) {
+    return undefined;
+  }
 
   if (!schema.name || !schema.schema) {
-    throw new Error("outputSchema requires both name and schema");
+    throw new Error(
+      "outputSchema requires both name and schema"
+    );
   }
 
   return {
@@ -263,84 +317,142 @@ const normalizeResponseFormat = ({
     json_schema: {
       name: schema.name,
       schema: schema.schema,
-      ...(typeof schema.strict === "boolean" ? { strict: schema.strict } : {}),
+      ...(typeof schema.strict === "boolean"
+        ? { strict: schema.strict }
+        : {}),
     },
   };
 };
 
-const RETRY_MAX_RETRIES = 4;
+const RETRY_MAX_RETRIES = 3;
 const RETRY_BASE_DELAY_MS = 500;
-const RETRY_MAX_DELAY_MS = 30_000;
-
-type FetchInit = NonNullable<Parameters<typeof fetch>[1]>;
+const RETRY_MAX_DELAY_MS = 10_000;
 
 const sleep = (ms: number) =>
-  new Promise<void>(resolve => setTimeout(resolve, ms));
+  new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-const parseRetryAfter = (value: string | null): number | undefined => {
-  if (!value) return undefined;
+const parseRetryAfter = (
+  value: string | null
+): number | undefined => {
+  if (!value) {
+    return undefined;
+  }
+
   const seconds = Number(value);
-  if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);
+
+  if (Number.isFinite(seconds)) {
+    return Math.max(0, seconds * 1000);
+  }
+
   const at = Date.parse(value);
-  return Number.isNaN(at) ? undefined : Math.max(0, at - Date.now());
+
+  if (Number.isNaN(at)) {
+    return undefined;
+  }
+
+  return Math.max(0, at - Date.now());
 };
 
-// Equal-jitter exponential backoff. The cap/2 floor guarantees a minimum
-// delay so a misbehaving caller loop slows down instead of hammering the
-// upstream while it keeps returning errors.
 const computeBackoffDelay = (
   attempt: number,
   retryAfterMs?: number
 ): number => {
-  const cap = Math.min(RETRY_BASE_DELAY_MS * 2 ** attempt, RETRY_MAX_DELAY_MS);
-  const jittered = cap / 2 + Math.random() * (cap / 2);
-  return Math.min(Math.max(jittered, retryAfterMs ?? 0), RETRY_MAX_DELAY_MS);
+  const cap = Math.min(
+    RETRY_BASE_DELAY_MS * 2 ** attempt,
+    RETRY_MAX_DELAY_MS
+  );
+
+  const jittered =
+    cap / 2 + Math.random() * (cap / 2);
+
+  return Math.min(
+    Math.max(jittered, retryAfterMs ?? 0),
+    RETRY_MAX_DELAY_MS
+  );
 };
 
-// Retries non-2xx responses and network errors with exponential backoff, then
-// returns the final Response so callers keep their existing error handling.
 const fetchWithBackoff = async (
   url: string,
-  init: FetchInit
+  init: RequestInit
 ): Promise<Response> => {
   let lastError: unknown;
 
-  for (let attempt = 0; attempt <= RETRY_MAX_RETRIES; attempt++) {
+  for (
+    let attempt = 0;
+    attempt <= RETRY_MAX_RETRIES;
+    attempt++
+  ) {
     try {
       const response = await fetch(url, init);
-      if (response.ok || attempt === RETRY_MAX_RETRIES) {
+
+      // Successful response.
+      if (response.ok) {
+        return response;
+      }
+
+      // Do not repeatedly retry authentication/configuration errors.
+      if (
+        response.status === 400 ||
+        response.status === 401 ||
+        response.status === 403 ||
+        response.status === 404
+      ) {
+        return response;
+      }
+
+      if (attempt === RETRY_MAX_RETRIES) {
         return response;
       }
 
       const retryAfterMs = parseRetryAfter(
         response.headers.get("retry-after")
       );
+
       try {
         await response.body?.cancel();
       } catch {
-        // Body already settled; nothing to clean up.
+        // Ignore body cancellation errors.
       }
+
       console.warn(
-        `LLM request retry ${attempt + 1}/${RETRY_MAX_RETRIES} after status ${response.status}`
+        `Groq LLM retry ${
+          attempt + 1
+        }/${RETRY_MAX_RETRIES} after status ${
+          response.status
+        }`
       );
-      await sleep(computeBackoffDelay(attempt, retryAfterMs));
+
+      await sleep(
+        computeBackoffDelay(attempt, retryAfterMs)
+      );
     } catch (error) {
       lastError = error;
-      if (attempt === RETRY_MAX_RETRIES) throw error;
+
+      if (attempt === RETRY_MAX_RETRIES) {
+        throw error;
+      }
+
       console.warn(
-        `LLM request retry ${attempt + 1}/${RETRY_MAX_RETRIES} after network error`
+        `Groq LLM retry ${
+          attempt + 1
+        }/${RETRY_MAX_RETRIES} after network error`
       );
+
       await sleep(computeBackoffDelay(attempt));
     }
   }
 
   throw lastError instanceof Error
     ? lastError
-    : new Error("LLM request failed after exhausting retries");
+    : new Error(
+        "LLM request failed after exhausting retries"
+      );
 };
 
-export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
-  assertApiKey();
+export async function invokeLLM(
+  params: InvokeParams
+): Promise<InvokeResult> {
+  const apiKey = getApiKey();
 
   const {
     messages,
@@ -352,19 +464,14 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     responseFormat,
     response_format,
     model,
-    thinking,
-    reasoning,
     maxTokens,
     max_tokens,
   } = params;
 
   const payload: Record<string, unknown> = {
+    model: model || DEFAULT_MODEL,
     messages: messages.map(normalizeMessage),
   };
-
-  if (model) {
-    payload.model = model;
-  }
 
   if (tools && tools.length > 0) {
     payload.tools = tools;
@@ -374,46 +481,48 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     toolChoice || tool_choice,
     tools
   );
+
   if (normalizedToolChoice) {
     payload.tool_choice = normalizedToolChoice;
   }
 
-  const resolvedMaxTokens = max_tokens ?? maxTokens;
+  const resolvedMaxTokens =
+    max_tokens ?? maxTokens;
+
   if (typeof resolvedMaxTokens === "number") {
     payload.max_tokens = resolvedMaxTokens;
   }
 
-  if (thinking) {
-    payload.thinking = thinking;
-  }
-  if (reasoning) {
-    payload.reasoning = reasoning;
-  }
-
-  const normalizedResponseFormat = normalizeResponseFormat({
-    responseFormat,
-    response_format,
-    outputSchema,
-    output_schema,
-  });
+  const normalizedResponseFormat =
+    normalizeResponseFormat({
+      responseFormat,
+      response_format,
+      outputSchema,
+      output_schema,
+    });
 
   if (normalizedResponseFormat) {
-    payload.response_format = normalizedResponseFormat;
+    payload.response_format =
+      normalizedResponseFormat;
   }
 
-  const response = await fetchWithBackoff(resolveApiUrl(), {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${ENV.forgeApiKey}`,
-    },
-    body: JSON.stringify(payload),
-  });
+  const response = await fetchWithBackoff(
+    GROQ_API_URL,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(payload),
+    }
+  );
 
   if (!response.ok) {
     const errorText = await response.text();
+
     throw new Error(
-      `LLM invoke failed: ${response.status} ${response.statusText} – ${errorText}`
+      `Groq LLM invoke failed: ${response.status} ${response.statusText} – ${errorText}`
     );
   }
 
@@ -433,20 +542,24 @@ export type ModelsResponse = {
 };
 
 export async function listLLMModels(): Promise<ModelsResponse> {
-  assertApiKey();
+  const apiKey = getApiKey();
 
-  const url = ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0
-    ? `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/models`
-    : "https://forge.manus.im/v1/models";
-
-  const response = await fetchWithBackoff(url, {
-    headers: { authorization: `Bearer ${ENV.forgeApiKey}` },
-  });
+  const response = await fetchWithBackoff(
+    GROQ_MODELS_URL,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+    }
+  );
 
   if (!response.ok) {
     const errorText = await response.text();
+
     throw new Error(
-      `List LLM models failed: ${response.status} ${response.statusText} – ${errorText}`
+      `List Groq LLM models failed: ${response.status} ${response.statusText} – ${errorText}`
     );
   }
 
