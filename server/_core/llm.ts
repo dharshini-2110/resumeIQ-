@@ -1,492 +1,685 @@
-import { eq, desc, sql, and } from "drizzle-orm";
-import { randomUUID } from "node:crypto";
-import { drizzle } from "drizzle-orm/mysql2";
-import {
-  InsertUser,
-  users,
-  InsertResumeVersion,
-  ResumeVersion,
-  resumeVersions,
-  InsertAtsScan,
-  atsScans,
-  InsertJobFitResult,
-  jobFitResults,
-  InsertRewriteSuggestion,
-  rewriteSuggestions,
-  InsertChatMessage,
-  chatMessages,
-  InsertSkillGapAnalysis,
-  skillGapAnalyses,
-  InsertUserProgress,
-  userProgress,
-  InsertInterviewSession,
-  interviewSessions,
-  InsertGithubAnalysis,
-  githubAnalyses,
-  InsertCareerPath,
-  careerPaths,
-  InterviewSession,
-  UserProgress,
-  InsertOnboardingProfile,
-  onboardingProfiles,
-  OnboardingProfile,
-  InsertJobApplication,
-  jobApplications,
-  JobApplication,
-} from "../drizzle/schema";
-import { ENV } from './_core/env';
+export type Role =
+  | "system"
+  | "user"
+  | "assistant"
+  | "tool"
+  | "function";
 
-let _db: ReturnType<typeof drizzle> | null = null;
+export type TextContent = {
+  type: "text";
+  text: string;
+};
 
-export async function getDb() {
-  if (!_db && process.env.DATABASE_URL) {
-    try {
-      _db = drizzle(process.env.DATABASE_URL);
-    } catch (error) {
-      console.warn("[Database] Failed to connect:", error);
-      _db = null;
-    }
-  }
-  return _db;
-}
+export type ImageContent = {
+  type: "image_url";
+  image_url: {
+    url: string;
+    detail?: "auto" | "low" | "high";
+  };
+};
 
-export async function upsertUser(user: InsertUser): Promise<void> {
-  if (!user.openId) {
-    throw new Error("User openId is required for upsert");
-  }
-  const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot upsert user: database not available");
-    return;
-  }
-  try {
-    const values: InsertUser = { openId: user.openId };
-    const updateSet: Record<string, unknown> = {};
-    const textFields = ["name", "email", "loginMethod"] as const;
-    type TextField = (typeof textFields)[number];
-    const assignNullable = (field: TextField) => {
-      const value = user[field];
-      if (value === undefined) return;
-      const normalized = value ?? null;
-      values[field] = normalized;
-      updateSet[field] = normalized;
+export type FileContent = {
+  type: "file_url";
+  file_url: {
+    url: string;
+    mime_type?:
+      | "audio/mpeg"
+      | "audio/wav"
+      | "application/pdf"
+      | "audio/mp4"
+      | "video/mp4";
+  };
+};
+
+export type MessageContent =
+  | string
+  | TextContent
+  | ImageContent
+  | FileContent;
+
+export type Message = {
+  role: Role;
+  content: MessageContent | MessageContent[];
+  name?: string;
+  tool_call_id?: string;
+};
+
+export type Tool = {
+  type: "function";
+  function: {
+    name: string;
+    description?: string;
+    parameters?: Record<string, unknown>;
+  };
+};
+
+export type ToolChoicePrimitive =
+  | "none"
+  | "auto"
+  | "required";
+
+export type ToolChoiceByName = {
+  name: string;
+};
+
+export type ToolChoiceExplicit = {
+  type: "function";
+  function: {
+    name: string;
+  };
+};
+
+export type ToolChoice =
+  | ToolChoicePrimitive
+  | ToolChoiceByName
+  | ToolChoiceExplicit;
+
+export type InvokeParams = {
+  messages: Message[];
+  tools?: Tool[];
+  toolChoice?: ToolChoice;
+  tool_choice?: ToolChoice;
+  maxTokens?: number;
+  max_tokens?: number;
+  outputSchema?: OutputSchema;
+  output_schema?: OutputSchema;
+  responseFormat?: ResponseFormat;
+  response_format?: ResponseFormat;
+  model?: string;
+  thinking?: Record<string, unknown>;
+  reasoning?: Record<string, unknown>;
+};
+
+export type ToolCall = {
+  id: string;
+  type: "function";
+  function: {
+    name: string;
+    arguments: string;
+  };
+};
+
+export type InvokeResult = {
+  id: string;
+  created: number;
+  model: string;
+  choices: Array<{
+    index: number;
+    message: {
+      role: Role;
+      content:
+        | string
+        | Array<
+            TextContent | ImageContent | FileContent
+          >;
+      tool_calls?: ToolCall[];
     };
-    textFields.forEach(assignNullable);
-    if (user.lastSignedIn !== undefined) {
-      values.lastSignedIn = user.lastSignedIn;
-      updateSet.lastSignedIn = user.lastSignedIn;
+    finish_reason: string | null;
+  }>;
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+};
+
+export type JsonSchema = {
+  name: string;
+  schema: Record<string, unknown>;
+  strict?: boolean;
+};
+
+export type OutputSchema = JsonSchema;
+
+export type ResponseFormat =
+  | {
+      type: "text";
     }
-    if (user.role !== undefined) {
-      values.role = user.role;
-      updateSet.role = user.role;
-    } else if (user.openId === ENV.ownerOpenId) {
-      values.role = 'admin';
-      updateSet.role = 'admin';
+  | {
+      type: "json_object";
     }
-    if (!values.lastSignedIn) {
-      values.lastSignedIn = new Date();
-    }
-    if (Object.keys(updateSet).length === 0) {
-      updateSet.lastSignedIn = new Date();
-    }
-    await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
-  } catch (error) {
-    console.error("[Database] Failed to upsert user:", error);
-    throw error;
-  }
-}
+  | {
+      type: "json_schema";
+      json_schema: JsonSchema;
+    };
 
-export async function getUserByOpenId(openId: string) {
-  const db = await getDb();
-  if (!db) return undefined;
-  const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
-  return result.length > 0 ? result[0] : undefined;
-}
+const ensureArray = (
+  value: MessageContent | MessageContent[]
+): MessageContent[] => {
+  return Array.isArray(value) ? value : [value];
+};
 
-export async function getUserById(userId: number) {
-  const db = await getDb();
-  if (!db) return undefined;
-
-  const result = await db
-    .select()
-    .from(users)
-    .where(eq(users.id, userId))
-    .limit(1);
-
-  return result.length > 0 ? result[0] : undefined;
-}
-
-export async function getUserByEmail(email: string) {
-  const db = await getDb();
-  if (!db) return undefined;
-  const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
-  return result.length > 0 ? result[0] : undefined;
-}
-
-export async function createLocalUser(data: {
-  email: string;
-  passwordHash: string;
-}): Promise<NonNullable<Awaited<ReturnType<typeof getUserByOpenId>>>> {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  const openId = `local_${randomUUID()}`;
-  const [result] = await db.insert(users).values({
-    openId,
-    email: data.email,
-    passwordHash: data.passwordHash,
-    loginMethod: "email_password",
-    lastSignedIn: new Date(),
-  });
-  const created = await db.select().from(users).where(eq(users.id, Number(result.insertId))).limit(1);
-  if (!created[0]) throw new Error("Local account could not be created");
-  return created[0];
-}
-
-export async function setUserPassword(userId: number, passwordHash: string): Promise<void> {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.update(users).set({ passwordHash, loginMethod: "email_password" }).where(eq(users.id, userId));
-}
-
-// ─── Resume Versions ───────────────────────────────────────────────────────
-export async function createResumeVersion(data: InsertResumeVersion): Promise<ResumeVersion> {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  const [result] = await db.insert(resumeVersions).values(data);
-  const created = await db.select().from(resumeVersions).where(eq(resumeVersions.id, Number(result.insertId))).limit(1);
-  if (!created[0]) throw new Error("Resume version could not be created");
-  return created[0];
-}
-
-export async function getResumeVersions(userId: number) {
-  const db = await getDb();
-  if (!db) return [];
-  return db.select().from(resumeVersions).where(eq(resumeVersions.userId, userId)).orderBy(desc(resumeVersions.createdAt));
-}
-
-export async function getResumeVersion(id: number, userId: number) {
-  const db = await getDb();
-  if (!db) return null;
-  const result = await db.select().from(resumeVersions).where(eq(resumeVersions.id, id)).limit(1);
-  if (result.length === 0 || result[0].userId !== userId) return null;
-  return result[0];
-}
-
-export async function updateResumeVersion(id: number, updates: Partial<InsertResumeVersion>) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.update(resumeVersions).set(updates).where(eq(resumeVersions.id, id));
-}
-
-// ─── ATS Scans ─────────────────────────────────────────────────────────────
-export async function createAtsScan(data: InsertAtsScan) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  const [row] = await db.insert(atsScans).values(data);
-  return row;
-}
-
-export async function getAtsScans(userId: number) {
-  const db = await getDb();
-  if (!db) return [];
-  return db.select().from(atsScans).where(eq(atsScans.userId, userId)).orderBy(desc(atsScans.createdAt));
-}
-
-// ─── Job-Fit Results ──────────────────────────────────────────────────────
-export async function createJobFitResult(data: InsertJobFitResult) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  const [row] = await db.insert(jobFitResults).values(data);
-  return row;
-}
-
-export async function getJobFitResults(userId: number) {
-  const db = await getDb();
-  if (!db) return [];
-  return db.select().from(jobFitResults).where(eq(jobFitResults.userId, userId)).orderBy(desc(jobFitResults.createdAt));
-}
-
-// ─── Rewrite Suggestions ──────────────────────────────────────────────────
-export async function createRewriteSuggestion(data: InsertRewriteSuggestion) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  const [row] = await db.insert(rewriteSuggestions).values(data);
-  return row;
-}
-
-export async function getRewriteSuggestions(userId: number) {
-  const db = await getDb();
-  if (!db) return [];
-  return db.select().from(rewriteSuggestions).where(eq(rewriteSuggestions.userId, userId)).orderBy(desc(rewriteSuggestions.createdAt));
-}
-
-// ─── Chat Messages ────────────────────────────────────────────────────────
-export async function addChatMessage(data: InsertChatMessage) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  const [row] = await db.insert(chatMessages).values(data);
-  return row;
-}
-
-export async function getChatHistory(userId: number, limit = 50) {
-  const db = await getDb();
-  if (!db) return [];
-  return db.select().from(chatMessages).where(eq(chatMessages.userId, userId)).orderBy(desc(chatMessages.createdAt)).limit(limit);
-}
-
-export async function clearChatHistory(userId: number) {
-  const db = await getDb();
-  if (!db) return;
-  await db.delete(chatMessages).where(eq(chatMessages.userId, userId));
-}
-
-// ─── Skill Gap Analysis ───────────────────────────────────────────────────
-export async function createSkillGapAnalysis(data: InsertSkillGapAnalysis) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  const [row] = await db.insert(skillGapAnalyses).values(data);
-  return row;
-}
-
-export async function getSkillGapAnalyses(userId: number) {
-  const db = await getDb();
-  if (!db) return [];
-  return db.select().from(skillGapAnalyses).where(eq(skillGapAnalyses.userId, userId)).orderBy(desc(skillGapAnalyses.createdAt));
-}
-
-// ─── User Progress / Gamification ─────────────────────────────────────────
-export async function getOrCreateUserProgress(userId: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  const existing = await db.select().from(userProgress).where(eq(userProgress.userId, userId)).limit(1);
-  if (existing.length > 0) return existing[0];
-  await db.insert(userProgress).values({
-    userId,
-    totalXP: 0,
-    level: 1,
-    badges: JSON.stringify([]),
-    currentStreak: 0,
-    longestStreak: 0,
-    tasksCompleted: 0,
-    lastActiveDate: new Date().toISOString().split("T")[0],
-  });
-  const created = await db.select().from(userProgress).where(eq(userProgress.userId, userId)).limit(1);
-  return created[0] as UserProgress;
-}
-
-export async function updateUserProgress(userId: number, updates: Partial<InsertUserProgress>) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.update(userProgress).set(updates).where(eq(userProgress.userId, userId));
-}
-
-export async function refreshUserStreak(userId: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  const progress = await getOrCreateUserProgress(userId);
-  const today = new Date().toISOString().split("T")[0];
-  if (progress.lastActiveDate === today) return progress;
-
-  let currentStreak = progress.currentStreak || 0;
-  if (progress.lastActiveDate) {
-    const lastDate = new Date(progress.lastActiveDate);
-    const todayDate = new Date(today);
-    const diffDays = Math.floor((todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
-    currentStreak = diffDays === 1 ? currentStreak + 1 : 1;
-  } else {
-    currentStreak = 1;
+const normalizeContentPart = (
+  part: MessageContent
+): TextContent | ImageContent | FileContent => {
+  if (typeof part === "string") {
+    return {
+      type: "text",
+      text: part,
+    };
   }
 
-  let badges: string[] = [];
-  try {
-    badges = progress.badges ? JSON.parse(progress.badges) : [];
-    if (!Array.isArray(badges)) badges = [];
-  } catch {
-    badges = [];
+  if (part.type === "text") {
+    return part;
   }
-  const newBadges = Array.from(new Set(badges));
-  if (currentStreak >= 3 && !newBadges.includes("streak_3")) newBadges.push("streak_3");
-  if (currentStreak >= 7 && !newBadges.includes("streak_7")) newBadges.push("streak_7");
-  if (newBadges.length >= 3 && !newBadges.includes("badge_collector")) newBadges.push("badge_collector");
 
-  await db.update(userProgress).set({
-    badges: JSON.stringify(newBadges),
-    currentStreak,
-    longestStreak: Math.max(progress.longestStreak || 0, currentStreak),
-    lastActiveDate: today,
-  }).where(eq(userProgress.userId, userId));
-  const updated = await db.select().from(userProgress).where(eq(userProgress.userId, userId)).limit(1);
-  return updated[0] as UserProgress;
-}
+  if (part.type === "image_url") {
+    return part;
+  }
 
-export async function awardXP(userId: number, amount: number, taskType: string) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  let progress = await getOrCreateUserProgress(userId);
-  const newXP = (progress.totalXP || 0) + amount;
-  const newLevel = Math.floor(newXP / 100) + 1;
-  const today = new Date().toISOString().split("T")[0];
-  const lastActive = progress.lastActiveDate;
-  let newStreak = progress.currentStreak || 0;
-  if (lastActive && lastActive !== today) {
-    const lastDate = new Date(lastActive);
-    const todayDate = new Date(today);
-    const diffDays = Math.floor((todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
-    if (diffDays === 1) {
-      newStreak += 1;
-    } else if (diffDays > 1) {
-      newStreak = 1;
+  if (part.type === "file_url") {
+    return part;
+  }
+
+  throw new Error("Unsupported message content part");
+};
+
+const normalizeMessage = (message: Message) => {
+  const {
+    role,
+    name,
+    tool_call_id,
+  } = message;
+
+  if (
+    role === "tool" ||
+    role === "function"
+  ) {
+    const content = ensureArray(message.content)
+      .map((part) =>
+        typeof part === "string"
+          ? part
+          : JSON.stringify(part)
+      )
+      .join("\n");
+
+    return {
+      role,
+      name,
+      tool_call_id,
+      content,
+    };
+  }
+
+  const contentParts = ensureArray(
+    message.content
+  ).map(normalizeContentPart);
+
+  if (
+    contentParts.length === 1 &&
+    contentParts[0].type === "text"
+  ) {
+    return {
+      role,
+      name,
+      content: contentParts[0].text,
+    };
+  }
+
+  return {
+    role,
+    name,
+    content: contentParts,
+  };
+};
+
+const normalizeToolChoice = (
+  toolChoice: ToolChoice | undefined,
+  tools: Tool[] | undefined
+):
+  | "none"
+  | "auto"
+  | ToolChoiceExplicit
+  | undefined => {
+  if (!toolChoice) {
+    return undefined;
+  }
+
+  if (
+    toolChoice === "none" ||
+    toolChoice === "auto"
+  ) {
+    return toolChoice;
+  }
+
+  if (toolChoice === "required") {
+    if (!tools || tools.length === 0) {
+      throw new Error(
+        "tool_choice 'required' was provided but no tools were configured"
+      );
     }
-  } else if (!lastActive) {
-    newStreak = 1;
+
+    if (tools.length > 1) {
+      throw new Error(
+        "tool_choice 'required' needs a single tool or specify the tool name explicitly"
+      );
+    }
+
+    return {
+      type: "function",
+      function: {
+        name: tools[0].function.name,
+      },
+    };
   }
-  const badges = progress.badges ? JSON.parse(progress.badges) : [];
-  const newBadges = Array.from(new Set([...badges]));
-  if (newLevel >= 2 && !newBadges.includes("rising_star")) newBadges.push("rising_star");
-  if (newStreak >= 3 && !newBadges.includes("streak_3")) newBadges.push("streak_3");
-  if (newStreak >= 7 && !newBadges.includes("streak_7")) newBadges.push("streak_7");
-  if (newBadges.length >= 3 && !newBadges.includes("badge_collector")) newBadges.push("badge_collector");
-  if (newXP >= 200 && !newBadges.includes("power_user")) newBadges.push("power_user");
-  if (newXP >= 500 && !newBadges.includes("career_master")) newBadges.push("career_master");
-  await db.update(userProgress).set({
-    totalXP: newXP,
-    level: newLevel,
-    badges: JSON.stringify(newBadges),
-    currentStreak: newStreak,
-    longestStreak: Math.max(progress.longestStreak || 0, newStreak),
-    tasksCompleted: (progress.tasksCompleted || 0) + 1,
-    lastActiveDate: today,
-  }).where(eq(userProgress.userId, userId));
-  return { xp: newXP, level: newLevel, badges: newBadges, streak: newStreak };
+
+  if ("name" in toolChoice) {
+    return {
+      type: "function",
+      function: {
+        name: toolChoice.name,
+      },
+    };
+  }
+
+  return toolChoice;
+};
+
+/*
+ * Groq uses an OpenAI-compatible API.
+ *
+ * ResumeIQ Pro no longer uses Manus Forge.
+ */
+
+const GROQ_CHAT_URL =
+  "https://api.groq.com/openai/v1/chat/completions";
+
+const GROQ_MODELS_URL =
+  "https://api.groq.com/openai/v1/models";
+
+const DEFAULT_MODEL =
+  "openai/gpt-oss-120b";
+
+const getGroqApiKey = (): string => {
+  const apiKey =
+    process.env.GROQ_API_KEY?.trim();
+
+  if (!apiKey) {
+    throw new Error(
+      "GROQ_API_KEY is not configured. Add GROQ_API_KEY to your Render environment variables."
+    );
+  }
+
+  return apiKey;
+};
+
+const normalizeResponseFormat = ({
+  responseFormat,
+  response_format,
+  outputSchema,
+  output_schema,
+}: {
+  responseFormat?: ResponseFormat;
+  response_format?: ResponseFormat;
+  outputSchema?: OutputSchema;
+  output_schema?: OutputSchema;
+}):
+  | {
+      type: "json_schema";
+      json_schema: JsonSchema;
+    }
+  | {
+      type: "text";
+    }
+  | {
+      type: "json_object";
+    }
+  | undefined => {
+  const explicitFormat =
+    responseFormat || response_format;
+
+  if (explicitFormat) {
+    if (
+      explicitFormat.type ===
+        "json_schema" &&
+      !explicitFormat.json_schema?.schema
+    ) {
+      throw new Error(
+        "responseFormat json_schema requires a defined schema object"
+      );
+    }
+
+    return explicitFormat;
+  }
+
+  const schema =
+    outputSchema || output_schema;
+
+  if (!schema) {
+    return undefined;
+  }
+
+  if (!schema.name || !schema.schema) {
+    throw new Error(
+      "outputSchema requires both name and schema"
+    );
+  }
+
+  return {
+    type: "json_schema",
+    json_schema: {
+      name: schema.name,
+      schema: schema.schema,
+      ...(typeof schema.strict ===
+      "boolean"
+        ? {
+            strict: schema.strict,
+          }
+        : {}),
+    },
+  };
+};
+
+const RETRY_MAX_RETRIES = 3;
+const RETRY_BASE_DELAY_MS = 500;
+const RETRY_MAX_DELAY_MS = 10000;
+
+const sleep = (
+  ms: number
+): Promise<void> => {
+  return new Promise((resolve) =>
+    setTimeout(resolve, ms)
+  );
+};
+
+const parseRetryAfter = (
+  value: string | null
+): number | undefined => {
+  if (!value) {
+    return undefined;
+  }
+
+  const seconds = Number(value);
+
+  if (Number.isFinite(seconds)) {
+    return Math.max(
+      0,
+      seconds * 1000
+    );
+  }
+
+  const at = Date.parse(value);
+
+  if (Number.isNaN(at)) {
+    return undefined;
+  }
+
+  return Math.max(
+    0,
+    at - Date.now()
+  );
+};
+
+const computeBackoffDelay = (
+  attempt: number,
+  retryAfterMs?: number
+): number => {
+  const cap = Math.min(
+    RETRY_BASE_DELAY_MS *
+      2 ** attempt,
+    RETRY_MAX_DELAY_MS
+  );
+
+  const jittered =
+    cap / 2 +
+    Math.random() * (cap / 2);
+
+  return Math.min(
+    Math.max(
+      jittered,
+      retryAfterMs ?? 0
+    ),
+    RETRY_MAX_DELAY_MS
+  );
+};
+
+const fetchWithBackoff = async (
+  url: string,
+  init: RequestInit
+): Promise<Response> => {
+  let lastError: unknown;
+
+  for (
+    let attempt = 0;
+    attempt <= RETRY_MAX_RETRIES;
+    attempt++
+  ) {
+    try {
+      const response = await fetch(
+        url,
+        init
+      );
+
+      if (response.ok) {
+        return response;
+      }
+
+      /*
+       * These errors usually mean the request
+       * or credentials are wrong. Retrying them
+       * wastes time.
+       */
+      if (
+        response.status === 400 ||
+        response.status === 401 ||
+        response.status === 403 ||
+        response.status === 404
+      ) {
+        return response;
+      }
+
+      if (
+        attempt ===
+        RETRY_MAX_RETRIES
+      ) {
+        return response;
+      }
+
+      const retryAfterMs =
+        parseRetryAfter(
+          response.headers.get(
+            "retry-after"
+          )
+        );
+
+      try {
+        await response.body?.cancel();
+      } catch {
+        // Ignore body cancellation errors.
+      }
+
+      console.warn(
+        `Groq LLM retry ${
+          attempt + 1
+        }/${RETRY_MAX_RETRIES} after status ${
+          response.status
+        }`
+      );
+
+      await sleep(
+        computeBackoffDelay(
+          attempt,
+          retryAfterMs
+        )
+      );
+    } catch (error) {
+      lastError = error;
+
+      if (
+        attempt ===
+        RETRY_MAX_RETRIES
+      ) {
+        throw error;
+      }
+
+      console.warn(
+        `Groq LLM retry ${
+          attempt + 1
+        }/${RETRY_MAX_RETRIES} after network error`
+      );
+
+      await sleep(
+        computeBackoffDelay(attempt)
+      );
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error(
+        "LLM request failed after exhausting retries"
+      );
+};
+
+export async function invokeLLM(
+  params: InvokeParams
+): Promise<InvokeResult> {
+  const apiKey =
+    getGroqApiKey();
+
+  const {
+    messages,
+    tools,
+    toolChoice,
+    tool_choice,
+    outputSchema,
+    output_schema,
+    responseFormat,
+    response_format,
+    model,
+    maxTokens,
+    max_tokens,
+  } = params;
+
+  const payload: Record<
+    string,
+    unknown
+  > = {
+    model:
+      model || DEFAULT_MODEL,
+
+    messages:
+      messages.map(
+        normalizeMessage
+      ),
+  };
+
+  if (
+    tools &&
+    tools.length > 0
+  ) {
+    payload.tools = tools;
+  }
+
+  const normalizedToolChoice =
+    normalizeToolChoice(
+      toolChoice ||
+        tool_choice,
+      tools
+    );
+
+  if (normalizedToolChoice) {
+    payload.tool_choice =
+      normalizedToolChoice;
+  }
+
+  const resolvedMaxTokens =
+    max_tokens ??
+    maxTokens;
+
+  if (
+    typeof resolvedMaxTokens ===
+    "number"
+  ) {
+    payload.max_tokens =
+      resolvedMaxTokens;
+  }
+
+  const normalizedResponseFormat =
+    normalizeResponseFormat({
+      responseFormat,
+      response_format,
+      outputSchema,
+      output_schema,
+    });
+
+  if (normalizedResponseFormat) {
+    payload.response_format =
+      normalizedResponseFormat;
+  }
+
+  const response =
+    await fetchWithBackoff(
+      GROQ_CHAT_URL,
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+
+          Authorization:
+            `Bearer ${apiKey}`,
+        },
+
+        body: JSON.stringify(
+          payload
+        ),
+      }
+    );
+
+  if (!response.ok) {
+    const errorText =
+      await response.text();
+
+    throw new Error(
+      `Groq LLM invoke failed: ${response.status} ${response.statusText} – ${errorText}`
+    );
+  }
+
+  return (await response.json()) as InvokeResult;
 }
 
-// ─── Interview Sessions ───────────────────────────────────────────────────
-export async function createInterviewSession(data: InsertInterviewSession) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  const [result] = await db.insert(interviewSessions).values(data);
-  const created = await db.select().from(interviewSessions).where(eq(interviewSessions.id, Number(result.insertId))).limit(1);
-  if (!created[0]) throw new Error("Interview session could not be created");
-  return created[0];
-}
+export type ModelInfo = {
+  id: string;
+  object: string;
+  created: number;
+  owned_by: string;
+};
 
-export async function getInterviewSessions(userId: number) {
-  const db = await getDb();
-  if (!db) return [];
-  return db.select().from(interviewSessions).where(eq(interviewSessions.userId, userId)).orderBy(desc(interviewSessions.createdAt));
-}
+export type ModelsResponse = {
+  object: string;
+  data: ModelInfo[];
+};
 
-export async function updateInterviewSession(id: number, updates: Partial<InsertInterviewSession>) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.update(interviewSessions).set(updates).where(eq(interviewSessions.id, id));
-}
+export async function listLLMModels(): Promise<ModelsResponse> {
+  const apiKey =
+    getGroqApiKey();
 
-// ─── GitHub Analyses ──────────────────────────────────────────────────────
-export async function createGithubAnalysis(data: InsertGithubAnalysis) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  const [row] = await db.insert(githubAnalyses).values(data);
-  return row;
-}
+  const response =
+    await fetchWithBackoff(
+      GROQ_MODELS_URL,
+      {
+        method: "GET",
 
-export async function getGithubAnalyses(userId: number) {
-  const db = await getDb();
-  if (!db) return [];
-  return db.select().from(githubAnalyses).where(eq(githubAnalyses.userId, userId)).orderBy(desc(githubAnalyses.createdAt));
-}
+        headers: {
+          Authorization:
+            `Bearer ${apiKey}`,
 
-// ─── Career Paths ─────────────────────────────────────────────────────────
-export async function createCareerPath(data: InsertCareerPath) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  const [row] = await db.insert(careerPaths).values(data);
-  return row;
-}
+          "Content-Type":
+            "application/json",
+        },
+      }
+    );
 
-export async function getCareerPaths(userId: number) {
-  const db = await getDb();
-  if (!db) return [];
-  return db.select().from(careerPaths).where(eq(careerPaths.userId, userId)).orderBy(desc(careerPaths.createdAt));
-}
+  if (!response.ok) {
+    const errorText =
+      await response.text();
 
+    throw new Error(
+      `List Groq LLM models failed: ${response.status} ${response.statusText} – ${errorText}`
+    );
+  }
 
-// ─── Guided Onboarding ───────────────────────────────────────────────────────
-export async function getOrCreateOnboardingProfile(userId: number): Promise<OnboardingProfile> {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  const existing = await db.select().from(onboardingProfiles).where(eq(onboardingProfiles.userId, userId)).limit(1);
-  if (existing[0]) return existing[0];
-  await db.insert(onboardingProfiles).values({ userId, currentStep: 0, completed: 0, interests: JSON.stringify([]), selectedTools: JSON.stringify([]) });
-  const created = await db.select().from(onboardingProfiles).where(eq(onboardingProfiles.userId, userId)).limit(1);
-  if (!created[0]) throw new Error("Onboarding profile could not be created");
-  return created[0];
-}
-
-export async function updateOnboardingProfile(userId: number, updates: Partial<InsertOnboardingProfile>) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.update(onboardingProfiles).set(updates).where(eq(onboardingProfiles.userId, userId));
-  const updated = await db.select().from(onboardingProfiles).where(eq(onboardingProfiles.userId, userId)).limit(1);
-  return updated[0] ?? null;
-}
-
-// ─── Job Application Tracker ─────────────────────────────────────────────────
-export async function createJobApplication(data: InsertJobApplication): Promise<JobApplication> {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  const [result] = await db.insert(jobApplications).values(data);
-  const created = await db.select().from(jobApplications).where(eq(jobApplications.id, Number(result.insertId))).limit(1);
-  if (!created[0]) throw new Error("Job application could not be created");
-  return created[0];
-}
-
-export async function getJobApplications(userId: number) {
-  const db = await getDb();
-  if (!db) return [];
-  return db.select().from(jobApplications).where(eq(jobApplications.userId, userId)).orderBy(desc(jobApplications.updatedAt));
-}
-
-export async function updateJobApplication(id: number, userId: number, updates: Partial<InsertJobApplication>) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.update(jobApplications).set(updates).where(and(eq(jobApplications.id, id), eq(jobApplications.userId, userId)));
-  const updated = await db.select().from(jobApplications).where(and(eq(jobApplications.id, id), eq(jobApplications.userId, userId))).limit(1);
-  return updated[0] ?? null;
-}
-
-export async function deleteJobApplication(id: number, userId: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.delete(jobApplications).where(and(eq(jobApplications.id, id), eq(jobApplications.userId, userId)));
-}
-
-export async function getLeaderboard(limit = 10) {
-  const db = await getDb();
-  if (!db) return [];
-  const safeLimit = Math.min(Math.max(Math.floor(limit), 1), 50);
-  const rows = await db
-    .select({
-      userId: userProgress.userId,
-      displayName: users.name,
-      totalXP: userProgress.totalXP,
-      level: userProgress.level,
-      currentStreak: userProgress.currentStreak,
-      tasksCompleted: userProgress.tasksCompleted,
-    })
-    .from(userProgress)
-    .leftJoin(users, eq(userProgress.userId, users.id))
-    .orderBy(desc(userProgress.totalXP))
-    .limit(safeLimit);
-
-  return rows.map((row, index) => ({
-    rank: index + 1,
-    userId: row.userId,
-    displayName: row.displayName || "Career builder",
-    totalXP: row.totalXP || 0,
-    level: row.level || 1,
-    currentStreak: row.currentStreak || 0,
-    tasksCompleted: row.tasksCompleted || 0,
-  }));
+  return (await response.json()) as ModelsResponse;
 }
