@@ -216,7 +216,7 @@ export const appRouter = router({
           email,
           passwordHash: await hashPassword(input.password),
         });
-        const sessionToken = await sdk.createSessionToken(user.openId, { name: email.split("@")[0] || email });
+        const sessionToken = await sdk.createSessionToken(user.id, { name: email.split("@")[0] || email });
         ctx.res.cookie(COOKIE_NAME, sessionToken, {
           ...getSessionCookieOptions(ctx.req),
           maxAge: 1000 * 60 * 60 * 24 * 365,
@@ -238,7 +238,7 @@ export const appRouter = router({
         const email = normalizeEmail(input.email);
         const user = await getUserByEmail(email);
         if (user && !user.passwordHash) {
-          throw new TRPCError({ code: "UNAUTHORIZED", message: "This email uses Manus OAuth. Sign in with Manus OAuth first, then choose Set email password from your profile menu." });
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "This email does not have a password yet. Please use the account's original sign-in method or contact support." });
         }
         const valid = Boolean(user?.passwordHash && await verifyPassword(input.password, user.passwordHash));
         if (!user || !valid) {
@@ -246,7 +246,7 @@ export const appRouter = router({
         }
 
         await db.upsertUser({ openId: user.openId, lastSignedIn: new Date() });
-        const sessionToken = await sdk.createSessionToken(user.openId, { name: email.split("@")[0] || email });
+        const sessionToken = await sdk.createSessionToken(user.id, { name: email.split("@")[0] || email });
         ctx.res.cookie(COOKIE_NAME, sessionToken, {
           ...getSessionCookieOptions(ctx.req),
           maxAge: 1000 * 60 * 60 * 24 * 365,
