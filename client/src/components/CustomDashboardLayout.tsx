@@ -38,8 +38,14 @@ import {
   Trophy,
   BriefcaseBusiness,
   Rocket,
+  KeyRound,
 } from "lucide-react";
-import { CSSProperties, useEffect, useRef, useState } from "react";
+import {
+  CSSProperties,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
@@ -55,20 +61,63 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import { KeyRound } from "lucide-react";
 
 const menuItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/" },
-  { icon: Rocket, label: "MNC Launchpad", path: "/launchpad" },
-  { icon: ScanSearch, label: "ATS Scanner", path: "/ats-scanner" },
-  { icon: Target, label: "Job-Fit Score", path: "/job-fit" },
-  { icon: Sparkles, label: "Resume Rewriter", path: "/resume-rewriter" },
-  { icon: MessageSquare, label: "Career Coach", path: "/career-coach" },
-  { icon: Map, label: "Skill Gap", path: "/skill-gap" },
-  { icon: FileDown, label: "PDF Export", path: "/pdf-export" },
-  { icon: Mic, label: "Mock Interview", path: "/mock-interview" },
-  { icon: Github, label: "GitHub Analyzer", path: "/github-analyzer" },
-  { icon: GitBranch, label: "Career Paths", path: "/career-paths" },
+  {
+    icon: LayoutDashboard,
+    label: "Dashboard",
+    path: "/",
+  },
+  {
+    icon: Rocket,
+    label: "MNC Launchpad",
+    path: "/launchpad",
+  },
+  {
+    icon: ScanSearch,
+    label: "ATS Scanner",
+    path: "/ats-scanner",
+  },
+  {
+    icon: Target,
+    label: "Job-Fit Score",
+    path: "/job-fit",
+  },
+  {
+    icon: Sparkles,
+    label: "Resume Rewriter",
+    path: "/resume-rewriter",
+  },
+  {
+    icon: MessageSquare,
+    label: "Career Coach",
+    path: "/career-coach",
+  },
+  {
+    icon: Map,
+    label: "Skill Gap",
+    path: "/skill-gap",
+  },
+  {
+    icon: FileDown,
+    label: "PDF Export",
+    path: "/pdf-export",
+  },
+  {
+    icon: Mic,
+    label: "Mock Interview",
+    path: "/mock-interview",
+  },
+  {
+    icon: Github,
+    label: "GitHub Analyzer",
+    path: "/github-analyzer",
+  },
+  {
+    icon: GitBranch,
+    label: "Career Paths",
+    path: "/career-paths",
+  },
   {
     icon: ArrowLeftRight,
     label: "Resume Versions",
@@ -92,19 +141,45 @@ export function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [sidebarWidth, setSidebarWidth] = useState(() => {
-    const saved = localStorage.getItem("sidebar-width");
-    return saved ? parseInt(saved, 10) : 260;
+    if (typeof window === "undefined") {
+      return 260;
+    }
+
+    const saved =
+      localStorage.getItem("sidebar-width");
+
+    const parsed = saved
+      ? parseInt(saved, 10)
+      : 260;
+
+    if (
+      Number.isNaN(parsed) ||
+      parsed < 220 ||
+      parsed > 420
+    ) {
+      return 260;
+    }
+
+    return parsed;
   });
 
   const { loading, user } = useAuth();
-  const [location, setLocation] = useLocation();
+  const [location, setLocation] =
+    useLocation();
 
-  const onboardingQuery = trpc.onboarding.get.useQuery(undefined, {
-    enabled: Boolean(user),
-  });
+  const onboardingQuery =
+    trpc.onboarding.get.useQuery(
+      undefined,
+      {
+        enabled: Boolean(user),
+      }
+    );
 
   useEffect(() => {
-    localStorage.setItem("sidebar-width", sidebarWidth.toString());
+    localStorage.setItem(
+      "sidebar-width",
+      sidebarWidth.toString()
+    );
   }, [sidebarWidth]);
 
   useEffect(() => {
@@ -116,7 +191,12 @@ export function DashboardLayout({
     ) {
       setLocation("/onboarding");
     }
-  }, [user, onboardingQuery.data, location, setLocation]);
+  }, [
+    user,
+    onboardingQuery.data,
+    location,
+    setLocation,
+  ]);
 
   if (loading) {
     return <DashboardLayoutSkeleton />;
@@ -134,7 +214,9 @@ export function DashboardLayout({
         } as CSSProperties
       }
     >
-      <DashboardLayoutContent setSidebarWidth={setSidebarWidth}>
+      <DashboardLayoutContent
+        setSidebarWidth={setSidebarWidth}
+      >
         {children}
       </DashboardLayoutContent>
     </SidebarProvider>
@@ -151,42 +233,79 @@ function DashboardLayoutContent({
   setSidebarWidth,
 }: DashboardLayoutContentProps) {
   const { user, logout } = useAuth();
-  const [location, setLocation] = useLocation();
-  const { state, toggleSidebar } = useSidebar();
 
-  const isCollapsed = state === "collapsed";
+  const [location, setLocation] =
+    useLocation();
 
-  const [isResizing, setIsResizing] = useState(false);
-  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const {
+    state,
+    toggleSidebar,
+  } = useSidebar();
 
-  const sidebarRef = useRef<HTMLDivElement>(null);
-
-  const setPasswordMutation = trpc.auth.setPassword.useMutation({
-    onSuccess: () => {
-      toast.success(
-        "Password enabled. You can now sign in with your email and password."
-      );
-
-      setPasswordDialogOpen(false);
-      setNewPassword("");
-      setConfirmNewPassword("");
-    },
-
-    onError: (error) =>
-      toast.error(error.message || "Unable to set your password."),
-  });
-
-  const activeMenuItem = menuItems.find(
-    (item) => item.path === location
-  );
+  const isCollapsed =
+    state === "collapsed";
 
   const isMobile = useIsMobile();
 
+  const [isResizing, setIsResizing] =
+    useState(false);
+
+  const [
+    passwordDialogOpen,
+    setPasswordDialogOpen,
+  ] = useState(false);
+
+  const [newPassword, setNewPassword] =
+    useState("");
+
+  const [
+    confirmNewPassword,
+    setConfirmNewPassword,
+  ] = useState("");
+
+  const sidebarRef =
+    useRef<HTMLDivElement>(null);
+
+  const setPasswordMutation =
+    trpc.auth.setPassword.useMutation({
+      onSuccess: () => {
+        toast.success(
+          "Password enabled. You can now sign in with your email and password."
+        );
+
+        setPasswordDialogOpen(false);
+        setNewPassword("");
+        setConfirmNewPassword("");
+      },
+
+      onError: (error) => {
+        toast.error(
+          error.message ||
+            "Unable to set your password."
+        );
+      },
+    });
+
+  const activeMenuItem =
+    menuItems.find(
+      (item) => item.path === location
+    );
+
   const savePassword = () => {
-    if (newPassword !== confirmNewPassword) {
-      toast.error("Passwords do not match.");
+    if (newPassword.length < 8) {
+      toast.error(
+        "Password must contain at least 8 characters."
+      );
+      return;
+    }
+
+    if (
+      newPassword !==
+      confirmNewPassword
+    ) {
+      toast.error(
+        "Passwords do not match."
+      );
       return;
     }
 
@@ -202,151 +321,263 @@ function DashboardLayoutContent({
   }, [isCollapsed]);
 
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing) return;
+    const handleMouseMove = (
+      event: MouseEvent
+    ) => {
+      if (!isResizing) {
+        return;
+      }
 
       const sidebarLeft =
-        sidebarRef.current?.getBoundingClientRect().left ?? 0;
+        sidebarRef.current?.getBoundingClientRect()
+          .left ?? 0;
 
-      const newWidth = e.clientX - sidebarLeft;
+      const newWidth =
+        event.clientX - sidebarLeft;
 
-      if (newWidth >= 200 && newWidth <= 480) {
+      if (
+        newWidth >= 220 &&
+        newWidth <= 420
+      ) {
         setSidebarWidth(newWidth);
       }
     };
 
-    const handleMouseUp = () => setIsResizing(false);
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
 
     if (isResizing) {
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleMouseUp);
+      document.addEventListener(
+        "mousemove",
+        handleMouseMove
+      );
 
-      document.body.style.cursor = "col-resize";
-      document.body.style.userSelect = "none";
+      document.addEventListener(
+        "mouseup",
+        handleMouseUp
+      );
+
+      document.body.style.cursor =
+        "col-resize";
+
+      document.body.style.userSelect =
+        "none";
     }
 
     return () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
+      document.removeEventListener(
+        "mousemove",
+        handleMouseMove
+      );
+
+      document.removeEventListener(
+        "mouseup",
+        handleMouseUp
+      );
 
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
     };
-  }, [isResizing, setSidebarWidth]);
+  }, [
+    isResizing,
+    setSidebarWidth,
+  ]);
+
+  const firstLetter =
+    user?.name
+      ?.trim()
+      ?.charAt(0)
+      ?.toUpperCase() || "U";
 
   return (
     <>
-      <div className="relative" ref={sidebarRef}>
+      <div
+        ref={sidebarRef}
+        className="relative"
+      >
         <Sidebar
           collapsible="icon"
-          className="border-r border-sidebar-border bg-sidebar/90 backdrop-blur-xl"
-          disableTransition={isResizing}
+          disableTransition={
+            isResizing
+          }
+          className="border-r border-sidebar-border bg-sidebar/95 backdrop-blur-xl"
         >
-          <SidebarHeader className="h-16 justify-center border-b border-sidebar-border bg-sidebar/60">
-            <div className="flex items-center gap-3 px-2 transition-all w-full">
+          {/* Header */}
+          <SidebarHeader className="h-16 border-b border-sidebar-border bg-sidebar/70 px-3">
+            <div className="flex h-full items-center gap-3">
               <button
+                type="button"
                 onClick={toggleSidebar}
-                className="h-8 w-8 flex items-center justify-center hover:bg-accent/50 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring shrink-0"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-all duration-200 hover:bg-accent hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label="Toggle navigation"
               >
-                <PanelLeft className="h-4 w-4 text-muted-foreground" />
+                <PanelLeft className="h-4 w-4" />
               </button>
 
-              {!isCollapsed ? (
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-8 h-8 rounded-lg aurora-gradient flex items-center justify-center shrink-0">
+              {!isCollapsed && (
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl aurora-gradient shadow-sm">
                     <Zap className="h-4 w-4 text-white" />
                   </div>
 
-                  <span className="font-bold tracking-tight truncate text-sm text-gradient-full">
-                    ResumeIQ Pro
-                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold tracking-tight text-gradient-full">
+                      ResumeIQ Pro
+                    </p>
+
+                    <p className="truncate text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                      Career Intelligence
+                    </p>
+                  </div>
                 </div>
-              ) : null}
+              )}
             </div>
           </SidebarHeader>
 
-          <SidebarContent className="gap-0 p-2">
+          {/* Navigation */}
+          <SidebarContent className="px-2 py-3">
             <SidebarMenu className="space-y-1">
-              {menuItems.map((item) => {
-                const isActive = location === item.path;
+              {menuItems.map(
+                (item) => {
+                  const isActive =
+                    location ===
+                    item.path;
 
-                return (
-                  <SidebarMenuItem key={item.path}>
-                    <SidebarMenuButton
-                      isActive={isActive}
-                      onClick={() => setLocation(item.path)}
-                      tooltip={item.label}
-                      className={`h-10 rounded-xl transition-all font-normal ${
-                        isActive
-                          ? "bg-primary/15 text-primary shadow-[inset_3px_0_0_var(--primary),0_8px_24px_oklch(0.72_0.22_340_/_0.08)]"
-                          : "hover:bg-accent/30"
-                      }`}
+                  const Icon =
+                    item.icon;
+
+                  return (
+                    <SidebarMenuItem
+                      key={item.path}
                     >
-                      <item.icon
-                        className={`h-4 w-4 shrink-0 ${
+                      <SidebarMenuButton
+                        isActive={
                           isActive
-                            ? "text-primary"
-                            : "text-muted-foreground"
-                        }`}
-                      />
+                        }
+                        onClick={() =>
+                          setLocation(
+                            item.path
+                          )
+                        }
+                        tooltip={
+                          item.label
+                        }
+                        className={[
+                          "group relative h-11 rounded-xl",
+                          "font-medium transition-all duration-200",
+                          "focus-visible:ring-2 focus-visible:ring-ring",
+                          isActive
+                            ? "bg-primary/12 text-primary shadow-sm"
+                            : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+                        ].join(" ")}
+                      >
+                        <Icon
+                          className={[
+                            "h-[18px] w-[18px] shrink-0 transition-transform duration-200",
+                            isActive
+                              ? "text-primary"
+                              : "text-muted-foreground group-hover:text-foreground",
+                            !isActive
+                              ? "group-hover:scale-105"
+                              : "",
+                          ].join(" ")}
+                        />
 
-                      <span className="truncate">
-                        {item.label}
-                      </span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
+                        <span className="truncate">
+                          {item.label}
+                        </span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                }
+              )}
             </SidebarMenu>
           </SidebarContent>
 
-          <SidebarFooter className="p-3 border-t border-border">
+          {/* User */}
+          <SidebarFooter className="border-t border-sidebar-border bg-sidebar/60 p-3">
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-3 rounded-lg px-1 py-1 hover:bg-accent/30 transition-colors w-full text-left group-data-[collapsible=icon]:justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  <Avatar className="h-8 w-8 border border-border shrink-0">
-                    <AvatarFallback className="text-xs font-medium bg-primary/20 text-primary">
-                      {user?.name?.charAt(0).toUpperCase()}
+              <DropdownMenuTrigger
+                asChild
+              >
+                <button
+                  type="button"
+                  className={[
+                    "group flex w-full items-center gap-3 rounded-xl p-2",
+                    "text-left transition-all duration-200",
+                    "hover:bg-accent/60",
+                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    isCollapsed
+                      ? "justify-center"
+                      : "",
+                  ].join(" ")}
+                >
+                  <Avatar className="h-9 w-9 shrink-0 border border-border shadow-sm">
+                    <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
+                      {firstLetter}
                     </AvatarFallback>
                   </Avatar>
 
-                  <div className="flex-1 min-w-0 group-data-[collapsible=icon]:hidden">
-                    <p className="text-sm font-medium truncate leading-none text-foreground">
-                      {user?.name || "User"}
-                    </p>
+                  {!isCollapsed && (
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold leading-5 text-foreground">
+                        {user?.name ||
+                          "User"}
+                      </p>
 
-                    <p className="text-xs text-muted-foreground truncate mt-1">
-                      {user?.email || ""}
-                    </p>
-                  </div>
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                        {user?.email ||
+                          ""}
+                      </p>
+                    </div>
+                  )}
                 </button>
               </DropdownMenuTrigger>
 
-              <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuContent
+                align="end"
+                side={
+                  isCollapsed
+                    ? "right"
+                    : "top"
+                }
+                className="w-56 rounded-xl p-1.5"
+              >
                 <DropdownMenuItem
-                  onClick={() => setPasswordDialogOpen(true)}
-                  className="cursor-pointer"
+                  onClick={() =>
+                    setPasswordDialogOpen(
+                      true
+                    )
+                  }
+                  className="cursor-pointer rounded-lg"
                 >
                   <KeyRound className="mr-2 h-4 w-4" />
-                  <span>Set email password</span>
+                  <span>
+                    Set email password
+                  </span>
                 </DropdownMenuItem>
 
                 <DropdownMenuItem
                   onClick={logout}
-                  className="cursor-pointer text-destructive focus:text-destructive"
+                  className="cursor-pointer rounded-lg text-destructive focus:text-destructive"
                 >
                   <LogOut className="mr-2 h-4 w-4" />
-                  <span>Sign out</span>
+                  <span>
+                    Sign out
+                  </span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </SidebarFooter>
         </Sidebar>
 
+        {/* Password Dialog */}
         <Dialog
           open={passwordDialogOpen}
-          onOpenChange={setPasswordDialogOpen}
+          onOpenChange={
+            setPasswordDialogOpen
+          }
         >
           <DialogContent className="border-border bg-card/95 backdrop-blur-xl sm:max-w-md">
             <DialogHeader>
@@ -356,8 +587,11 @@ function DashboardLayoutContent({
 
               <DialogDescription>
                 Create a password for{" "}
-                <strong>{user?.email}</strong>. Your Manus OAuth
-                sign-in will continue to work too.
+                <strong>
+                  {user?.email}
+                </strong>
+                . Your existing sign-in
+                will continue to work.
               </DialogDescription>
             </DialogHeader>
 
@@ -374,10 +608,13 @@ function DashboardLayoutContent({
                   maxLength={128}
                   value={newPassword}
                   onChange={(event) =>
-                    setNewPassword(event.target.value)
+                    setNewPassword(
+                      event.target.value
+                    )
                   }
                   autoComplete="new-password"
                   placeholder="At least 8 characters"
+                  className="h-11 rounded-xl"
                 />
               </div>
 
@@ -391,12 +628,17 @@ function DashboardLayoutContent({
                   type="password"
                   minLength={8}
                   maxLength={128}
-                  value={confirmNewPassword}
+                  value={
+                    confirmNewPassword
+                  }
                   onChange={(event) =>
-                    setConfirmNewPassword(event.target.value)
+                    setConfirmNewPassword(
+                      event.target.value
+                    )
                   }
                   autoComplete="new-password"
                   placeholder="Repeat your password"
+                  className="h-11 rounded-xl"
                 />
               </div>
 
@@ -404,48 +646,57 @@ function DashboardLayoutContent({
                 onClick={savePassword}
                 disabled={
                   setPasswordMutation.isPending ||
-                  newPassword.length < 8 ||
-                  confirmNewPassword.length < 8
+                  newPassword.length <
+                    8 ||
+                  confirmNewPassword.length <
+                    8
                 }
-                className="w-full"
+                className="h-11 w-full rounded-xl"
               >
                 {setPasswordMutation.isPending
-                  ? "Saving…"
+                  ? "Saving..."
                   : "Enable email sign-in"}
               </Button>
             </div>
           </DialogContent>
         </Dialog>
 
-        <div
-          className={`absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-primary/20 transition-colors ${
-            isCollapsed ? "hidden" : ""
-          }`}
-          onMouseDown={() => {
-            if (isCollapsed) return;
-            setIsResizing(true);
-          }}
-          style={{ zIndex: 50 }}
-        />
+        {/* Resize handle */}
+        {!isCollapsed && (
+          <div
+            className="absolute right-0 top-0 z-50 h-full w-1 cursor-col-resize transition-colors hover:bg-primary/20"
+            onMouseDown={() =>
+              setIsResizing(true)
+            }
+            aria-hidden="true"
+          />
+        )}
       </div>
 
       <SidebarInset>
+        {/* Mobile header */}
         {isMobile && (
-          <div className="flex border-b border-border h-14 items-center justify-between bg-background/95 px-2 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40">
-            <div className="flex items-center gap-2">
-              <SidebarTrigger className="h-9 w-9 rounded-lg bg-accent/30" />
+          <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-border bg-background/90 px-3 backdrop-blur-xl">
+            <div className="flex min-w-0 items-center gap-2">
+              <SidebarTrigger className="h-9 w-9 rounded-xl bg-accent/40" />
 
-              <span className="tracking-tight text-foreground text-sm font-semibold">
-                {activeMenuItem?.label ?? "ResumeIQ Pro"}
-              </span>
+              <div className="flex min-w-0 items-center gap-2">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg aurora-gradient">
+                  <Zap className="h-3.5 w-3.5 text-white" />
+                </div>
+
+                <span className="truncate text-sm font-semibold text-foreground">
+                  {activeMenuItem?.label ||
+                    "ResumeIQ Pro"}
+                </span>
+              </div>
             </div>
-          </div>
+          </header>
         )}
 
-        {/* Fixed: intelligence-grid removed from main.
-            This prevents the entire page from fading at the bottom. */}
-        <main className="flex-1 p-4 lg:p-6 aurora-bg min-h-screen">
-          <div className="relative z-10">
+        {/* Main content */}
+        <main className="min-h-screen flex-1 aurora-bg p-4 lg:p-6">
+          <div className="relative z-10 mx-auto w-full max-w-[1600px]">
             {children}
           </div>
         </main>
